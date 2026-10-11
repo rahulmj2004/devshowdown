@@ -54,9 +54,9 @@ describe("buildLeaderboard", () => {
     );
     expect(groups.map((group) => group.event.slug)).toEqual([
       "code-debugging",
+      "speed-typing",
       "blind-coding",
       "tech-treasure-hunt",
-      "speed-typing",
     ]);
     for (const group of groups) expect(group.rows[0].rank).toBe(1);
   });

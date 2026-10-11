@@ -13,7 +13,9 @@ import {
   createRegistration,
   getRegistration,
   handleRazorpayWebhook,
+  reviewUpiPayment,
   startPayment,
+  submitUpiPayment,
   type RegistrationContext,
 } from "@/lib/registration/service";
 import type { EventConfig } from "@/types";
@@ -599,6 +601,191 @@ describe("mock payments", () => {
 });
 
 /* ---------------------------------------------------------------- webhook */
+
+describe("direct UPI payments", () => {
+  const upiContext = () =>
+    makeContext({
+      paymentMode: "upi",
+      gateway: null,
+      upi: { vpa: "rahul@okaxis", payeeName: "Rahul M J" },
+    });
+
+  async function reachUpi(
+    context: RegistrationContext,
+    overrides: Record<string, unknown> = {},
+  ) {
+    const created = await register(context, overrides);
+    const started = await startPayment(context, created.access);
+    if (started.status !== "ready" || started.checkout.mode !== "upi") {
+      throw new Error(`expected a UPI checkout, got ${started.status}`);
+    }
+    return { ...created, checkout: started.checkout };
+  }
+
+  it("shows who to pay, the stored amount and the reference as the note", async () => {
+    const context = upiContext();
+    const { registration, checkout } = await reachUpi(context);
+
+    expect(checkout).toEqual({
+      mode: "upi",
+      vpa: "rahul@okaxis",
+      payeeName: "Rahul M J",
+      amountPaise: 10000,
+      currency: "INR",
+      note: registration.reference,
+    });
+    expect(registration.testPayment).toBe(false);
+  });
+
+  it("treats a transaction ID as a claim: nothing is confirmed until reviewed", async () => {
+    const context = upiContext();
+    const { access } = await reachUpi(context);
+
+    const response = await submitUpiPayment(context, access, {
+      transactionId: "412345678901",
+    });
+
+    expect(response.status).toBe("settled");
+    if (response.status !== "settled") return;
+    expect(response.registration.status).toBe("pending_payment");
+    expect(response.registration.paymentStatus).toBe("verification_required");
+    expect(response.registration.paymentReference).toBeNull();
+    expect(context.onConfirmed).not.toHaveBeenCalled();
+  });
+
+  it("refuses anything that is not a 12-digit transaction ID", async () => {
+    const context = upiContext();
+    const { access } = await reachUpi(context);
+
+    for (const transactionId of [
+      "",
+      "12345",
+      "41234567890a",
+      "4123456789012",
+    ]) {
+      const response = await submitUpiPayment(context, access, {
+        transactionId,
+      });
+      expect(response).toMatchObject({
+        status: "rejected",
+        reason: "invalid_transaction_id",
+      });
+    }
+    expect((await getRegistration(context, access))?.paymentStatus).toBe(
+      "pending",
+    );
+  });
+
+  it("confirms the registration once an organizer approves the claim", async () => {
+    const context = upiContext();
+    const { access, registration } = await reachUpi(context);
+    await submitUpiPayment(context, access, { transactionId: "412345678901" });
+
+    expect(
+      await reviewUpiPayment(context, registration.reference, "approve"),
+    ).toBe("approved");
+
+    const latest = await getRegistration(context, access);
+    expect(latest?.status).toBe("confirmed");
+    expect(latest?.paymentStatus).toBe("paid");
+    expect(latest?.paymentReference).toBe("412345678901");
+    expect(context.onConfirmed).toHaveBeenCalledTimes(1);
+
+    // A second click on "Mark paid" finds nothing left to review.
+    expect(
+      await reviewUpiPayment(context, registration.reference, "approve"),
+    ).toBe("nothing_to_review");
+    expect(context.onConfirmed).toHaveBeenCalledTimes(1);
+  });
+
+  it("lets the participant enter a different ID after a rejection", async () => {
+    const context = upiContext();
+    const { access, registration } = await reachUpi(context);
+    await submitUpiPayment(context, access, { transactionId: "412345678901" });
+
+    expect(
+      await reviewUpiPayment(context, registration.reference, "reject"),
+    ).toBe("rejected");
+    expect((await getRegistration(context, access))?.paymentStatus).toBe(
+      "failed",
+    );
+    expect(context.onConfirmed).not.toHaveBeenCalled();
+
+    await submitUpiPayment(context, access, { transactionId: "498765432109" });
+    expect(
+      await reviewUpiPayment(context, registration.reference, "approve"),
+    ).toBe("approved");
+    expect((await getRegistration(context, access))?.paymentReference).toBe(
+      "498765432109",
+    );
+  });
+
+  it("will not accept one transaction ID for two registrations", async () => {
+    const context = upiContext();
+    const first = await reachUpi(context);
+    const second = await reachUpi(context, {
+      email: "ravi@example.com",
+      clientKey: keyOf("b"),
+    });
+    await submitUpiPayment(context, first.access, {
+      transactionId: "412345678901",
+    });
+
+    const reused = await submitUpiPayment(context, second.access, {
+      transactionId: "412345678901",
+    });
+
+    expect(reused).toMatchObject({
+      status: "rejected",
+      reason: "transaction_id_in_use",
+    });
+    expect((await getRegistration(context, second.access))?.paymentStatus).toBe(
+      "pending",
+    );
+    expect(
+      await reviewUpiPayment(context, second.registration.reference, "approve"),
+    ).toBe("nothing_to_review");
+  });
+
+  it("cannot be changed by the participant while a claim is under review", async () => {
+    const context = upiContext();
+    const { access, registration } = await reachUpi(context);
+    await submitUpiPayment(context, access, { transactionId: "412345678901" });
+    await submitUpiPayment(context, access, { transactionId: "498765432109" });
+
+    await reviewUpiPayment(context, registration.reference, "approve");
+    expect((await getRegistration(context, access))?.paymentReference).toBe(
+      "412345678901",
+    );
+  });
+
+  it("has nothing to review for a registration nobody has paid for", async () => {
+    const context = upiContext();
+    const { registration, access } = await reachUpi(context);
+
+    expect(
+      await reviewUpiPayment(context, registration.reference, "approve"),
+    ).toBe("nothing_to_review");
+    expect((await getRegistration(context, access))?.status).toBe(
+      "pending_payment",
+    );
+  });
+
+  it("cannot be used to report a payment outside UPI mode", async () => {
+    const context = makeContext();
+    const { access } = await register(context);
+    await openOrder(context, access);
+
+    expect(
+      await submitUpiPayment(context, access, {
+        transactionId: "412345678901",
+      }),
+    ).toEqual({ status: "error" });
+    expect((await getRegistration(context, access))?.paymentStatus).toBe(
+      "pending",
+    );
+  });
+});
 
 describe("handleRazorpayWebhook", () => {
   async function awaitingWebhook() {

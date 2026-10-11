@@ -9,6 +9,7 @@ import {
   verifyCheckoutSignature,
   verifyWebhookSignature,
 } from "@/lib/payments/signature";
+import { buildUpiUri, resolveUpiPayee } from "@/lib/payments/upi";
 
 const sign = (secret: string, message: string) =>
   createHmac("sha256", secret).update(message).digest("hex");
@@ -155,6 +156,44 @@ describe("resolvePaymentMode", () => {
     ).toBe("razorpay");
   });
 
+  it("takes direct UPI payments once a UPI ID and a database are both present", () => {
+    const none = { keyId: undefined, keySecret: undefined };
+    expect(
+      resolvePaymentMode({
+        hasDatabase: true,
+        ...none,
+        hasUpiPayee: true,
+        requested: undefined,
+      }).mode,
+    ).toBe("upi");
+    // Razorpay, when configured, takes priority over direct UPI.
+    expect(
+      resolvePaymentMode({
+        hasDatabase: true,
+        ...keys,
+        hasUpiPayee: true,
+        requested: undefined,
+      }).mode,
+    ).toBe("razorpay");
+  });
+
+  it("never shows a UPI ID in production when payments could not be recorded", () => {
+    const input = {
+      hasDatabase: false,
+      keyId: undefined,
+      keySecret: undefined,
+      hasUpiPayee: true,
+      requested: undefined,
+    };
+    const production = resolvePaymentMode({ ...input, allowUpiPreview: false });
+    expect(production.mode).toBe("unconfigured");
+    expect(production.reason).toMatch(/no database/);
+    // Outside production the screens can be previewed in demo mode.
+    expect(resolvePaymentMode({ ...input, allowUpiPreview: true }).mode).toBe(
+      "upi",
+    );
+  });
+
   it("lets PAYMENT_MODE=mock override real keys", () => {
     expect(
       resolvePaymentMode({ hasDatabase: true, ...keys, requested: "mock" })
@@ -178,5 +217,33 @@ describe("fees", () => {
     expect(resolveFeePaise(null, "mock", 50)).toBe(5000);
     expect(resolveFeePaise(null, "razorpay", 50)).toBe(0);
     expect(resolveFeePaise(150, "razorpay", 50)).toBe(15000);
+  });
+});
+
+describe("UPI", () => {
+  it("is off until both a well-formed UPI ID and a payee name are set", () => {
+    expect(resolveUpiPayee({ vpa: null, payeeName: null })).toBeNull();
+    expect(
+      resolveUpiPayee({ vpa: "rahul@okaxis", payeeName: null }),
+    ).toBeNull();
+    expect(
+      resolveUpiPayee({ vpa: "not a upi id", payeeName: "Rahul M J" }),
+    ).toBeNull();
+    expect(
+      resolveUpiPayee({ vpa: " rahul.mj-1@okaxis ", payeeName: "Rahul M J" }),
+    ).toEqual({ vpa: "rahul.mj-1@okaxis", payeeName: "Rahul M J" });
+  });
+
+  it("builds a payment link with a fixed amount and the reference as the note", () => {
+    expect(
+      buildUpiUri({
+        vpa: "rahul@okaxis",
+        payeeName: "Rahul M J",
+        amountPaise: 15050,
+        note: "DSD-7K2M9QXA",
+      }),
+    ).toBe(
+      "upi://pay?pa=rahul@okaxis&pn=Rahul%20M%20J&am=150.50&cu=INR&tn=DSD-7K2M9QXA",
+    );
   });
 });

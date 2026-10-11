@@ -1,26 +1,26 @@
 import { ArrowRight } from "lucide-react";
 import { LeaderboardTable } from "@/components/leaderboard/leaderboard-table";
-import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { Reveal } from "@/components/ui/reveal";
 import { SectionHeading } from "@/components/ui/section-heading";
-import { demoResults } from "@/lib/data/demo-results";
 import { buildLeaderboard } from "@/lib/data/leaderboard";
 import type { ResultEntry } from "@/types";
 
 /**
- * Home-page leaderboard teaser. Shows real published results when there are
- * any; otherwise it previews the layout with rows that are explicitly labelled
- * as demonstration data.
+ * Home-page leaderboard teaser. It appears only once real results have been
+ * published: before the event there is nothing to rank, and sample rows on
+ * the front page would read as real participants.
  */
 export function LeaderboardPreview({
   entries,
+  index,
 }: {
   entries: readonly ResultEntry[];
+  /** Two-digit section marker. */
+  index: string;
 }) {
-  const real = buildLeaderboard(entries);
-  const isDemo = real.length === 0;
-  const group = (isDemo ? buildLeaderboard(demoResults) : real)[0];
+  const group = buildLeaderboard(entries)[0];
+  if (!group) return null;
 
   return (
     <section
@@ -31,7 +31,7 @@ export function LeaderboardPreview({
         <Reveal>
           <SectionHeading
             id="leaderboard-heading"
-            index="07"
+            index={index}
             eyebrow="Leaderboard"
             title="Every result, ranked"
             description="Once competitions are run, published results appear on the leaderboard, ranked separately for each event."
@@ -49,27 +49,14 @@ export function LeaderboardPreview({
           </ButtonLink>
         </Reveal>
 
-        {group && (
-          <Reveal delay={0.1}>
-            {isDemo && (
-              <div className="mb-3 flex flex-wrap items-center gap-2.5">
-                <Badge tone="warn" dot>
-                  Demonstration data
-                </Badge>
-                <p className="text-xs text-subtle">
-                  Sample rows showing the layout. Not real participants or
-                  results.
-                </p>
-              </div>
-            )}
-            <LeaderboardTable
-              event={group.event}
-              rows={group.rows}
-              limit={5}
-              headingLevel="h3"
-            />
-          </Reveal>
-        )}
+        <Reveal delay={0.1}>
+          <LeaderboardTable
+            event={group.event}
+            rows={group.rows}
+            limit={5}
+            headingLevel="h3"
+          />
+        </Reveal>
       </div>
     </section>
   );

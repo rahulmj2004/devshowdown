@@ -7,7 +7,7 @@ const event = events[0];
 
 describe("EventCard", () => {
   it("shows the event and links to its details page", () => {
-    render(<EventCard event={event} registrationStatus="not_open" />);
+    render(<EventCard event={event} />);
     expect(
       screen.getByRole("heading", { name: event.title }),
     ).toBeInTheDocument();
@@ -18,29 +18,30 @@ describe("EventCard", () => {
     ).toHaveAttribute("href", `/events/${event.slug}`);
   });
 
-  it("does not offer registration before it opens", () => {
-    render(<EventCard event={event} registrationStatus="not_open" />);
+  it("has no register button of its own: teams register once for the event", () => {
+    render(<EventCard event={event} />);
     expect(screen.queryByRole("link", { name: /register/i })).toBeNull();
-    expect(screen.getByText("Registration not open yet")).toBeInTheDocument();
-  });
-
-  it("links to the pre-filled registration flow once open", () => {
-    render(<EventCard event={event} registrationStatus="open" />);
-    expect(
-      screen.getByRole("link", { name: `Register for ${event.title}` }),
-    ).toHaveAttribute("href", `/register?event=${event.slug}`);
+    expect(screen.queryByText(/registration/i)).toBeNull();
   });
 
   it("marks unconfirmed details as TBA instead of inventing them", () => {
-    render(<EventCard event={event} registrationStatus="not_open" />);
+    render(
+      <EventCard
+        event={{ ...event, format: null, teamSize: null, eligibility: null }}
+      />,
+    );
     expect(screen.getAllByText("TBA")).toHaveLength(3);
   });
 
   it("shows confirmed details when configured", () => {
     render(
       <EventCard
-        event={{ ...event, format: "Two rounds", teamSize: "Solo" }}
-        registrationStatus="not_open"
+        event={{
+          ...event,
+          format: "Two rounds",
+          teamSize: "Solo",
+          eligibility: null,
+        }}
       />,
     );
     expect(screen.getByText("Two rounds")).toBeInTheDocument();
@@ -49,29 +50,22 @@ describe("EventCard", () => {
   });
 
   it("shows an entry fee only once the organizers have confirmed one", () => {
-    const { rerender } = render(
-      <EventCard event={event} registrationStatus="not_open" />,
-    );
+    const { rerender } = render(<EventCard event={event} />);
     expect(screen.queryByText("Entry fee")).toBeNull();
 
-    rerender(
-      <EventCard
-        event={{ ...event, fee: 100 }}
-        registrationStatus="not_open"
-      />,
-    );
+    rerender(<EventCard event={{ ...event, fee: 100 }} />);
     expect(screen.getByText("Entry fee")).toBeInTheDocument();
     expect(screen.getByText("₹100")).toBeInTheDocument();
   });
 });
 
 describe("event configuration", () => {
-  it("lists the five competitions without inventing their details", () => {
+  it("lists the five competitions in the order of the day, without inventing their details", () => {
     expect(events.map((item) => item.title)).toEqual([
       "Debugging",
+      "Speed Typing",
       "Blind Coding",
       "Treasure Hunt",
-      "Speed Typing",
       "Coding",
     ]);
     for (const item of events) {

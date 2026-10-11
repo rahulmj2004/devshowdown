@@ -7,7 +7,7 @@ interface NetworkInformationLike {
   saveData?: boolean;
 }
 
-/** Phones, data-saver sessions and weak CPUs get a lighter fire. */
+/** Phones, data-saver sessions and weak CPUs get a lighter board. */
 function prefersLite(): boolean {
   const connection = (
     navigator as Navigator & { connection?: NetworkInformationLike }
@@ -20,14 +20,14 @@ function prefersLite(): boolean {
 }
 
 /**
- * The hero's dragon, the fire it sets to the wordmark and the lightning behind
- * them. It is pure decoration on canvases that ignore input: the scene is
- * fetched once the page is idle, and with reduced motion it never loads (no
- * flashes, and the wordmark stays exactly as it is). Its partners are found
- * inside the same section: the wordmark by `data-fire-wordmark`, the sky
- * canvas by `data-storm-sky`.
+ * The hero's circuit board, the charge it runs into the wordmark and the
+ * lightning above them. It is pure decoration on canvases that ignore input:
+ * the scene is fetched once the page is idle, and with reduced motion it never
+ * loads (no flashes, and the wordmark stays exactly as it is). Its partners
+ * are found inside the same section: the wordmark by `data-circuit-wordmark`,
+ * the sky canvas by `data-storm-sky`.
  */
-export function DragonFire({ className }: { className?: string }) {
+export function CircuitBoard({ className }: { className?: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const reduceMotion = useReducedMotion();
 
@@ -40,13 +40,13 @@ export function DragonFire({ className }: { className?: string }) {
 
     const boot = async () => {
       try {
-        const { mountDragonScene } = await import("./dragon-scene");
+        const { mountCircuitScene } = await import("./circuit-scene");
         if (cancelled) return;
         const hero = canvas.closest("section");
-        dispose = mountDragonScene(canvas, {
+        dispose = mountCircuitScene(canvas, {
           lite: prefersLite(),
           wordmark:
-            hero?.querySelector<HTMLElement>("[data-fire-wordmark]") ?? null,
+            hero?.querySelector<HTMLElement>("[data-circuit-wordmark]") ?? null,
           sky:
             hero?.querySelector<HTMLCanvasElement>("[data-storm-sky]") ?? null,
         });

@@ -24,6 +24,10 @@ const kinds: Record<
 export function ScheduleSection() {
   const { schedule, details } = siteConfig;
   const confirmed = schedule.length > 0;
+  // A clock time contains a digit followed by ":" or am/pm; session labels do not.
+  const timed = schedule.some((day) =>
+    day.items.some((item) => /\d\s*(:|am|pm)/i.test(item.time)),
+  );
 
   return (
     <section
@@ -39,9 +43,11 @@ export function ScheduleSection() {
             eyebrow="Schedule"
             title="Run of show"
             description={
-              confirmed
+              timed
                 ? `All times are shown in ${details.timezoneLabel}.`
-                : "The timeline will be published here as soon as each slot is confirmed."
+                : confirmed
+                  ? "The order of the day. Exact timings will be announced by the organizers."
+                  : "The timeline will be published here as soon as each slot is confirmed."
             }
           />
           <dl className="mt-8 grid max-w-sm grid-cols-2 gap-4 text-sm">

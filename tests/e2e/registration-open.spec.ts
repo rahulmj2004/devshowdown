@@ -1,4 +1,12 @@
 import { expect, test, type Page } from "@playwright/test";
+import { siteConfig } from "../../config/site";
+
+// These drive the built-in form, which the Register page does not show while
+// registration is handled by an external form.
+test.skip(
+  siteConfig.registration.formUrl !== null,
+  "the external form replaces the built-in one",
+);
 
 /**
  * Runs against the server started with REGISTRATION_STATUS=open, a ₹50

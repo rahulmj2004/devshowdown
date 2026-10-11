@@ -29,6 +29,8 @@ const actions = vi.hoisted(() => ({
     vi.fn<(access: unknown, payload: unknown) => Promise<PaymentResponse>>(),
   resolveMockPayment:
     vi.fn<(access: unknown, result: unknown) => Promise<PaymentResponse>>(),
+  reportUpiPayment:
+    vi.fn<(access: unknown, payload: unknown) => Promise<PaymentResponse>>(),
 }));
 vi.mock("@/app/register/actions", () => actions);
 
@@ -76,7 +78,6 @@ const config: FlowConfig = {
   testFees: false,
   emailConfigured: false,
   contact: { email: null, phone: null },
-  refundPolicy: null,
 };
 
 function summary(
@@ -648,5 +649,119 @@ describe("RegistrationFlow: refresh", () => {
       screen.getByRole("heading", { name: "Choose your competition" }),
     ).toBeInTheDocument();
     expect(actions.fetchRegistration).not.toHaveBeenCalled();
+  });
+});
+
+describe("RegistrationFlow: UPI payment", () => {
+  const upiConfig: FlowConfig = { ...config, paymentMode: "upi" };
+
+  async function reachUpiCheckout(user: User) {
+    actions.submitRegistration.mockResolvedValue({
+      status: "created",
+      registration: pendingSummary(),
+    });
+    actions.beginPayment.mockResolvedValue({
+      status: "ready",
+      checkout: {
+        mode: "upi",
+        vpa: "rahul@okaxis",
+        payeeName: "Rahul M J",
+        amountPaise: 5000,
+        currency: "INR",
+        note: "DSD-7K2M9QXA",
+      },
+    });
+    renderFlow({ events: paidEvents, config: upiConfig });
+    await reachReview(user);
+    await confirm(user, "Continue to payment · ₹50");
+    await user.click(
+      await screen.findByRole("button", { name: "Pay ₹50 by UPI" }),
+    );
+    return screen.findByRole("form", { name: "Pay ₹50 by UPI" });
+  }
+
+  it("shows the QR code, the UPI ID and the reference to pay against", async () => {
+    const user = userEvent.setup();
+    const checkout = await reachUpiCheckout(user);
+
+    expect(
+      within(checkout).getByTitle("UPI QR code to pay ₹50 to Rahul M J"),
+    ).toBeInTheDocument();
+    expect(within(checkout).getByText("rahul@okaxis")).toBeInTheDocument();
+    expect(within(checkout).getByText("DSD-7K2M9QXA")).toBeInTheDocument();
+    expect(
+      within(checkout).getByRole("link", { name: "Open my UPI app" }),
+    ).toHaveAttribute(
+      "href",
+      "upi://pay?pa=rahul@okaxis&pn=Rahul%20M%20J&am=50.00&cu=INR&tn=DSD-7K2M9QXA",
+    );
+  });
+
+  it("asks for a 12-digit transaction ID before sending anything", async () => {
+    const user = userEvent.setup();
+    const checkout = await reachUpiCheckout(user);
+
+    await user.type(
+      within(checkout).getByLabelText("UPI transaction ID (UTR)"),
+      "4123",
+    );
+    await user.click(
+      within(checkout).getByRole("button", { name: /I have paid/ }),
+    );
+
+    expect(
+      screen.getByText(
+        "Enter the 12-digit UPI transaction ID from your payment receipt.",
+      ),
+    ).toBeInTheDocument();
+    expect(actions.reportUpiPayment).not.toHaveBeenCalled();
+  });
+
+  it("reports the payment and waits for a coordinator instead of confirming", async () => {
+    actions.reportUpiPayment.mockResolvedValue({
+      status: "settled",
+      registration: pendingSummary({ paymentStatus: "verification_required" }),
+    });
+    const user = userEvent.setup();
+    const checkout = await reachUpiCheckout(user);
+
+    await user.type(
+      within(checkout).getByLabelText("UPI transaction ID (UTR)"),
+      "412345678901",
+    );
+    await user.click(
+      within(checkout).getByRole("button", { name: /I have paid/ }),
+    );
+
+    expect(
+      await screen.findByText("A coordinator is checking your payment"),
+    ).toBeInTheDocument();
+    expect(actions.reportUpiPayment).toHaveBeenCalledWith(
+      expect.objectContaining({ reference: "DSD-7K2M9QXA" }),
+      { transactionId: "412345678901" },
+    );
+    expect(screen.queryByText("You're in the arena")).toBeNull();
+  });
+
+  it("says so when the transaction ID was already used", async () => {
+    actions.reportUpiPayment.mockResolvedValue({
+      status: "rejected",
+      registration: pendingSummary(),
+      reason: "transaction_id_in_use",
+    });
+    const user = userEvent.setup();
+    const checkout = await reachUpiCheckout(user);
+
+    await user.type(
+      within(checkout).getByLabelText("UPI transaction ID (UTR)"),
+      "412345678901",
+    );
+    await user.click(
+      within(checkout).getByRole("button", { name: /I have paid/ }),
+    );
+
+    expect(
+      await screen.findByText("That transaction ID has already been used"),
+    ).toBeInTheDocument();
   });
 });

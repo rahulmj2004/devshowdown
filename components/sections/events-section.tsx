@@ -3,15 +3,9 @@ import { EventGrid } from "@/components/events/event-grid";
 import { ButtonLink } from "@/components/ui/button";
 import { Reveal } from "@/components/ui/reveal";
 import { SectionHeading } from "@/components/ui/section-heading";
-import type { EventConfig, RegistrationStatus } from "@/types";
+import type { EventConfig } from "@/types";
 
-export function EventsSection({
-  events,
-  registrationStatus,
-}: {
-  events: readonly EventConfig[];
-  registrationStatus: RegistrationStatus;
-}) {
+export function EventsSection({ events }: { events: readonly EventConfig[] }) {
   return (
     <section
       id="events"
@@ -24,7 +18,7 @@ export function EventsSection({
           index="01"
           eyebrow="The competitions"
           title="Choose your arena"
-          description="Five arenas, five different ways to win. Each one tests a different edge, so pick the one that plays to your strengths."
+          description="Three sub-events in the morning, then the Treasure Hunt and the Coding round. Your team registers once for all of it."
         />
         <Reveal>
           <ButtonLink
@@ -42,7 +36,7 @@ export function EventsSection({
       </div>
 
       <div className="mt-14">
-        <EventGrid events={events} registrationStatus={registrationStatus} />
+        <EventGrid events={events} />
       </div>
     </section>
   );

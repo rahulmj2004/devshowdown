@@ -4,12 +4,13 @@ import { Reveal } from "@/components/ui/reveal";
 import { siteConfig } from "@/config/site";
 import { formatRupees } from "@/lib/utils";
 import { Podium } from "./podium";
+import { PrizePath } from "./prize-path";
 
 /**
  * Prize pool. The headline figure and whether it is final both come from
  * `config/site.ts`; while `prize.approximate` is true the figure is labelled
- * as awaiting confirmation. Podium amounts appear once `prize.distribution`
- * is filled in.
+ * as awaiting confirmation. Until `prize.distribution` is filled in, the road
+ * to the prize (`prize.stages`) is drawn in place of the podium.
  */
 export function PrizeSection() {
   const { prize } = siteConfig;
@@ -84,7 +85,11 @@ export function PrizeSection() {
         </Reveal>
 
         <div className="mt-16 sm:mt-20">
-          <Podium tiers={prize.distribution} />
+          {prize.distribution ? (
+            <Podium tiers={prize.distribution} />
+          ) : (
+            <PrizePath stages={prize.stages} />
+          )}
         </div>
       </div>
 

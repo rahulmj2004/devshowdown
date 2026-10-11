@@ -1,6 +1,7 @@
 import type {
   CreateRegistrationResult,
   NewRegistration,
+  PaymentClaim,
   RecordPaymentResult,
   RegistrationStore,
   StoredOrder,
@@ -18,13 +19,14 @@ interface MemoryOrder extends StoredOrder {
 
 interface MemoryTransaction {
   registrationId: string;
+  providerOrderId: string;
   providerPaymentId: string;
   status: VerifiedPayment["status"];
 }
 
 /**
  * In-memory implementation of the registration store. It mirrors the rules of
- * the SQL functions in supabase/migrations/0002 so the same service code and
+ * the SQL functions in supabase/migrations (0002, 0003) so the same service code and
  * the same tests run against either. Nothing here is durable: it backs demo
  * mode (no database connected) and the test suite.
  */
@@ -180,8 +182,15 @@ export class MemoryRegistrationStore implements RegistrationStore {
 
     const key = `${payment.provider}:${payment.providerPaymentId}`;
     const previous = this.transactions.get(key);
+    // A payment id belongs to one order. Reusing it elsewhere changes nothing.
+    if (previous && previous.providerOrderId !== order.providerOrderId) {
+      return done("payment_id_in_use");
+    }
+    // Re-inserted so the newest claim is always last.
+    this.transactions.delete(key);
     this.transactions.set(key, {
       registrationId: registration.id,
+      providerOrderId: order.providerOrderId,
       providerPaymentId: payment.providerPaymentId,
       // A captured payment never goes backwards.
       status: previous?.status === "captured" ? "captured" : payment.status,
@@ -192,7 +201,10 @@ export class MemoryRegistrationStore implements RegistrationStore {
     if (payment.status === "failed") {
       if (
         registration.paymentStatus === "pending" ||
-        registration.paymentStatus === "failed"
+        registration.paymentStatus === "failed" ||
+        // An organizer turning down a UPI claim reopens it for another try.
+        (order.provider === "upi" &&
+          registration.paymentStatus === "verification_required")
       ) {
         registration.paymentStatus = "failed";
       }
@@ -212,6 +224,32 @@ export class MemoryRegistrationStore implements RegistrationStore {
     registration.paymentStatus = "paid";
     registration.confirmedAt = new Date().toISOString();
     return done("confirmed");
+  }
+
+  async findPaymentClaim(reference: string): Promise<PaymentClaim | null> {
+    const registration = [...this.registrations.values()].find(
+      (candidate) => candidate.reference === reference,
+    );
+    if (registration?.paymentStatus !== "verification_required") return null;
+    const order = this.orders.find(
+      (candidate) =>
+        candidate.registrationId === registration.id &&
+        candidate.provider === "upi",
+    );
+    const claim = [...this.transactions.values()]
+      .reverse()
+      .find(
+        (transaction) =>
+          transaction.providerOrderId === order?.providerOrderId &&
+          transaction.status === "authorized",
+      );
+    if (!order || !claim) return null;
+    return {
+      providerOrderId: order.providerOrderId,
+      providerPaymentId: claim.providerPaymentId,
+      amountPaise: order.amountPaise,
+      currency: order.currency,
+    };
   }
 
   async claimWebhookEvent(event: { provider: "razorpay"; eventId: string }) {

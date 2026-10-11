@@ -31,7 +31,7 @@ Everything the organizers decide lives in two files. Nothing else needs to chang
 | ---------------------------------------------------------------------------- | ------------------ |
 | Competitions: title, tagline, format, eligibility, team rule, **fee**, rules | `config/events.ts` |
 | Dates, venue, countdown instant, timezone, prize pool and split, schedule,   | `config/site.ts`   |
-| sponsors, FAQ, contact, socials, refund policy, multiple-entry policy        |                    |
+| sponsors, FAQ, contact, socials, multiple-entry policy                       |                    |
 | Registration open/closed and the hero announcement badge                     | Admin dashboard    |
 
 **Anything left as `null` (or an empty list) renders as "TBA" / "Awaiting
@@ -86,19 +86,22 @@ for organizers and the participant is told not to pay again).
 - **Private.** A registration can be read back only with both its reference and that key.
   All tables are closed to the anon key by Row Level Security.
 
-### The three payment modes
+### The four payment modes
 
-Decided on the server from environment variables (`lib/payments/mode.ts`). The register
+Decided on the server from environment variables and the UPI ID in `config/site.ts`
+(`lib/payments/mode.ts`). The register
 page shows the current mode under "System status".
 
-| Mode           | When                                                          | Behaviour                                                                                   |
-| -------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| `razorpay`     | Razorpay keys set (and a database, unless they are test keys) | Real Checkout, signature verification, webhook                                              |
-| `mock`         | `PAYMENT_MODE=mock`, or nothing configured at all (demo mode) | A clearly labelled simulated checkout. No money moves. Entries are flagged as test payments |
-| `unconfigured` | Database connected but no Razorpay keys                       | Free registrations work. Registrations with a fee are refused before anything is saved      |
+| Mode           | When                                                           | Behaviour                                                                                                               |
+| -------------- | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `razorpay`     | Razorpay keys set (and a database, unless they are test keys)  | Real Checkout, signature verification, webhook                                                                          |
+| `upi`          | No Razorpay keys, a UPI ID in `config/site.ts`, and a database | The participant pays the UPI ID from a QR code and enters the transaction ID; an organizer approves it in the dashboard |
+| `mock`         | `PAYMENT_MODE=mock`, or nothing configured at all (demo mode)  | A clearly labelled simulated checkout. No money moves. Entries are flagged as test payments                             |
+| `unconfigured` | Database connected but no Razorpay keys or UPI ID              | Free registrations work. Registrations with a fee are refused before anything is saved                                  |
 
 Live Razorpay keys are refused when no database is connected, because a real payment that
-cannot be recorded is worse than no payment.
+cannot be recorded is worse than no payment. A UPI ID without a database is refused in
+production for the same reason; under `next dev` the UPI screens can still be previewed.
 
 ## Environment variables
 
@@ -125,8 +128,8 @@ Client Component is a build error.
 ## Connecting Supabase
 
 1. Create a Supabase project. In the SQL editor run, in order,
-   `supabase/migrations/0001_init.sql` then `supabase/migrations/0002_registration_payments.sql`
-   (or `supabase db push`). Both are safe to run twice.
+   `supabase/migrations/0001_init.sql`, `0002_registration_payments.sql` and
+   `0003_upi_payments.sql` (or `supabase db push`). Each is safe to run twice.
 2. Set the three Supabase variables and redeploy.
 3. Create the organizer's user under **Authentication → Users**, then grant access:
    ```sql
@@ -140,6 +143,33 @@ Client Component is a build error.
 `team_members`, `payment_orders`, `payment_transactions`, `payment_webhook_events`, the
 organizer view `admin_registration_entries`, and the transactional functions
 `create_registration` and `record_payment`.
+
+## Taking payment by UPI (no gateway)
+
+The simplest way to collect fees: money goes straight to an organizer's own UPI account,
+and an organizer confirms each payment by hand.
+
+1. Connect Supabase as above, including `0003_upi_payments.sql`.
+2. In `config/site.ts` set `payment.upi.vpa` (the UPI ID that receives the money) and
+   `payment.upi.payeeName`. Leave the Razorpay variables empty.
+3. Set the fees in `config/events.ts`, then open registration from the dashboard.
+
+What happens then:
+
+- The participant registers, sees a QR code for the exact amount (the registration
+  reference is the payment note), pays in their own UPI app, and enters the 12-digit UPI
+  transaction ID (UTR) from the receipt.
+- The registration waits as **Needs review**. It is never confirmed on the participant's
+  word alone.
+- In `/admin`, **UPI payments to check** lists each one with the amount and transaction ID.
+  Find it in the UPI app's history, check the amount, then **Mark paid** (confirms the
+  registration and sends the confirmation email, if email is configured) or **Reject** (the
+  participant can enter a different ID).
+- One transaction ID cannot be used for two registrations.
+
+Before opening registration, pay a small real amount yourself and take it through to
+**Mark paid**. Some banks limit payments to a personal UPI ID from a QR code, so check that
+the QR works from at least two different UPI apps.
 
 ## Connecting Razorpay
 
@@ -167,7 +197,7 @@ live keys until every item below has been done with **test** keys on the deploye
 - [ ] The row appears in the admin dashboard as **Paid**, and the CSV export includes it.
 - [ ] Automatic capture is enabled on the Razorpay account, or you are prepared to capture
       manually (uncaptured payments show as "Verification required").
-- [ ] Refund policy, terms and privacy notice have the organizers' final text.
+- [ ] Terms and privacy notice have the organizers' final text.
 
 ## Scripts
 
@@ -216,7 +246,7 @@ opening registration.
 
 ```
 app/                  routes: /, /events, /events/[slug], /register, /leaderboard, /admin,
-                      /rules, /privacy, /terms, /refunds, /api/webhooks/razorpay
+                      /rules, /privacy, /terms, /api/webhooks/razorpay
 components/           hero, sections, events, registration, motion, layout, ui, admin
 config/               events.ts and site.ts: all editable content
 lib/payments/         mode selection, signature verification, Razorpay gateway
@@ -237,5 +267,5 @@ tests/                unit/ (Vitest) and e2e/ (Playwright)
   the Razorpay dashboard and the Supabase table editor).
 - Participant self-service lookup from another device. A registration can be reopened
   only in the browser that created it.
-- The privacy notice, terms, refund policy and general rules are drafts awaiting
+- The privacy notice, terms and general rules are drafts awaiting
   organizer text.

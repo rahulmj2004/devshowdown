@@ -1,13 +1,16 @@
 "use client";
 
 import { LoaderCircle, Lock, RotateCcw, ShieldCheck } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { QRCodeSVG } from "qrcode.react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   beginPayment,
   fetchRegistration,
+  reportUpiPayment,
   resolveMockPayment,
   verifyPayment,
 } from "@/app/register/actions";
+import { describe, Field, inputClasses } from "@/components/forms/field";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/ui/notice";
@@ -17,7 +20,9 @@ import type {
   PaymentResponse,
   RegistrationSummary,
 } from "@/lib/registration/service";
+import { buildUpiUri, UPI_TRANSACTION_ID_PATTERN } from "@/lib/payments/upi";
 import { formatPaise } from "@/lib/utils";
+import type { PaymentMode } from "@/types";
 import { openRazorpayCheckout } from "./razorpay-checkout";
 
 type Phase = "idle" | "starting" | "checkout" | "verifying";
@@ -25,6 +30,7 @@ type Phase = "idle" | "starting" | "checkout" | "verifying";
 /** What happened on the last attempt, for the notice above the button. */
 type Note =
   | { kind: "dismissed" }
+  | { kind: "transaction_id_in_use" }
   | { kind: "attempt_failed" }
   | { kind: "rejected" }
   | { kind: "unavailable"; reason: string }
@@ -41,17 +47,22 @@ const MAX_POLLS = 20;
  * claim, which is sent to the server to be verified; the screen then shows
  * whatever state the server returns. Retrying reuses the same order, so a
  * second click, a refresh or a failed attempt cannot create a second charge.
+ *
+ * With direct UPI there is no gateway: the participant pays in their own app
+ * and reports the transaction ID, which an organizer then checks by hand.
  */
 export function PaymentStep({
   registration,
   access,
   siteName,
+  paymentMode,
   onUpdate,
   onStartOver,
 }: {
   registration: RegistrationSummary;
   access: { reference: string; clientKey: string };
   siteName: string;
+  paymentMode: PaymentMode;
   onUpdate: (registration: RegistrationSummary) => void;
   onStartOver: () => void;
 }) {
@@ -62,8 +73,15 @@ export function PaymentStep({
     CheckoutSession,
     { mode: "mock" }
   > | null>(null);
+  const [upiSession, setUpiSession] = useState<Extract<
+    CheckoutSession,
+    { mode: "upi" }
+  > | null>(null);
+  const [transactionId, setTransactionId] = useState("");
+  const [transactionIdError, setTransactionIdError] = useState<string>();
   const inFlight = useRef(false);
 
+  const upi = paymentMode === "upi";
   const busy = phase !== "idle";
   const amount = formatPaise(registration.amountPaise);
   const awaitingVerification =
@@ -117,15 +135,25 @@ export function PaymentStep({
         });
       } else if (state === "verification_required") {
         toast({
-          title: "Payment received, verification in progress",
-          description: "Please do not pay again.",
+          title: upi
+            ? "Transaction ID submitted"
+            : "Payment received, verification in progress",
+          description: upi
+            ? "A coordinator will check it. Please do not pay again."
+            : "Please do not pay again.",
         });
       }
       onUpdate(response.registration);
       return;
     }
-    if (response.status === "rejected") setNote({ kind: "rejected" });
-    else if (response.status === "not_found") setNote({ kind: "not_found" });
+    if (response.status === "rejected") {
+      setNote({
+        kind:
+          response.reason === "transaction_id_in_use"
+            ? "transaction_id_in_use"
+            : "rejected",
+      });
+    } else if (response.status === "not_found") setNote({ kind: "not_found" });
     else setNote({ kind: "error" });
   };
 
@@ -160,6 +188,10 @@ export function PaymentStep({
         setMockSession(started.checkout);
         return;
       }
+      if (started.checkout.mode === "upi") {
+        setUpiSession(started.checkout);
+        return;
+      }
 
       setPhase("checkout");
       const outcome = await openRazorpayCheckout(started.checkout, {
@@ -191,6 +223,33 @@ export function PaymentStep({
       setMockSession(null);
       applyResponse(response);
     });
+
+  const submitUpi = (event: FormEvent) => {
+    event.preventDefault();
+    const value = transactionId.trim();
+    if (!UPI_TRANSACTION_ID_PATTERN.test(value)) {
+      setTransactionIdError(
+        "Enter the 12-digit UPI transaction ID from your payment receipt.",
+      );
+      return;
+    }
+    setTransactionIdError(undefined);
+    return guarded(async () => {
+      setNote(null);
+      setPhase("verifying");
+      const response = await reportUpiPayment(access, { transactionId: value });
+      if (response.status === "settled") {
+        setUpiSession(null);
+        setTransactionId("");
+      }
+      applyResponse(response);
+    });
+  };
+
+  const closeUpi = () => {
+    setUpiSession(null);
+    setNote({ kind: "dismissed" });
+  };
 
   const closeMock = () => {
     setMockSession(null);
@@ -258,29 +317,64 @@ export function PaymentStep({
       </dl>
 
       <div aria-live="polite" className="mt-5 space-y-3 empty:hidden">
-        {awaitingVerification && (
-          <Notice tone="warn" title="We are verifying your payment">
-            The payment gateway has reported a payment that this site has not
-            been able to confirm yet. Please do not pay again. This page checks
-            automatically; if it is still unresolved, contact the organizers and
-            quote your reference.
-          </Notice>
-        )}
+        {awaitingVerification &&
+          (upi ? (
+            <Notice tone="warn" title="A coordinator is checking your payment">
+              Your transaction ID has been sent to the coordinators, who match
+              it against the payments they received. Your place is confirmed
+              once they approve it. Please do not pay again. Keep your
+              reference, and come back to this page to see the result.
+            </Notice>
+          ) : (
+            <Notice tone="warn" title="We are verifying your payment">
+              The payment gateway has reported a payment that this site has not
+              been able to confirm yet. Please do not pay again. This page
+              checks automatically; if it is still unresolved, contact the
+              organizers and quote your reference.
+            </Notice>
+          ))}
         {superseded && !awaitingVerification && (
           <Notice tone="warn" title="This registration was replaced">
             A newer registration was started with the same email address for the
             same competition. Start again to continue.
           </Notice>
         )}
-        {registration.paymentStatus === "failed" && !note && (
-          <Notice tone="danger" title="The last payment attempt failed">
-            Nothing was confirmed. You can try again; you will not be charged
-            twice for the same registration.
-          </Notice>
-        )}
-        {note?.kind === "dismissed" && (
-          <Notice tone="info" title="Checkout was closed before paying">
-            Nothing was charged. Your registration is saved as pending.
+        {registration.paymentStatus === "failed" &&
+          !note &&
+          (upi ? (
+            <Notice
+              tone="danger"
+              title="The coordinators could not find that payment"
+            >
+              The transaction ID you entered did not match a payment they
+              received. If you have already paid, do not pay again: enter the
+              correct 12-digit transaction ID, or call a coordinator and quote
+              your reference.
+            </Notice>
+          ) : (
+            <Notice tone="danger" title="The last payment attempt failed">
+              Nothing was confirmed. You can try again; you will not be charged
+              twice for the same registration.
+            </Notice>
+          ))}
+        {note?.kind === "dismissed" &&
+          (upi ? (
+            <Notice tone="info" title="Payment not reported yet">
+              Your registration is saved as pending. If you have paid, open the
+              payment details again and enter your transaction ID.
+            </Notice>
+          ) : (
+            <Notice tone="info" title="Checkout was closed before paying">
+              Nothing was charged. Your registration is saved as pending.
+            </Notice>
+          ))}
+        {note?.kind === "transaction_id_in_use" && (
+          <Notice
+            tone="danger"
+            title="That transaction ID has already been used"
+          >
+            It is recorded against another registration. Check the number on
+            your receipt, or call a coordinator and quote your reference.
           </Notice>
         )}
         {note?.kind === "attempt_failed" && (
@@ -313,7 +407,107 @@ export function PaymentStep({
         )}
       </div>
 
-      {mockSession ? (
+      {upiSession ? (
+        <form
+          onSubmit={submitUpi}
+          noValidate
+          aria-labelledby="upi-checkout-title"
+          className="mt-6 border border-line-strong bg-bg p-5 sm:p-6"
+        >
+          <p id="upi-checkout-title" className="eyebrow text-lime">
+            Pay {formatPaise(upiSession.amountPaise)} by UPI
+          </p>
+          <div className="mt-5 grid gap-6 sm:grid-cols-[auto_1fr] sm:items-start">
+            <div className="justify-self-start bg-white p-3">
+              <QRCodeSVG
+                value={buildUpiUri(upiSession)}
+                size={168}
+                marginSize={0}
+                title={`UPI QR code to pay ${formatPaise(upiSession.amountPaise)} to ${upiSession.payeeName}`}
+              />
+            </div>
+            <ol className="list-decimal space-y-3 pl-5 text-sm leading-relaxed text-muted marker:font-mono marker:text-xs marker:text-lime">
+              <li>
+                Scan the code with any UPI app (Google Pay, PhonePe, Paytm,
+                BHIM), or pay to the UPI ID{" "}
+                <span className="font-mono text-fg select-all">
+                  {upiSession.vpa}
+                </span>{" "}
+                ({upiSession.payeeName}).
+              </li>
+              <li>
+                Pay exactly{" "}
+                <span className="text-fg">
+                  {formatPaise(upiSession.amountPaise)}
+                </span>
+                . If your app asks for a note, enter{" "}
+                <span className="font-mono text-fg select-all">
+                  {upiSession.note}
+                </span>
+                .
+              </li>
+              <li>
+                Open the payment receipt in your app and copy the 12-digit UPI
+                transaction ID (also shown as UTR or UPI Ref No.) into the box
+                below.
+              </li>
+            </ol>
+          </div>
+          <a
+            href={buildUpiUri(upiSession)}
+            className="mt-5 inline-flex text-sm text-fg underline underline-offset-4 hover:text-lime sm:hidden"
+          >
+            Open my UPI app
+          </a>
+
+          <Field
+            id="upi-transaction-id"
+            label="UPI transaction ID (UTR)"
+            hint="12 digits, from the receipt in your UPI app."
+            error={transactionIdError}
+            className="mt-6 max-w-sm"
+          >
+            <input
+              id="upi-transaction-id"
+              name="transactionId"
+              type="text"
+              inputMode="numeric"
+              autoComplete="off"
+              required
+              maxLength={12}
+              value={transactionId}
+              onChange={(event) =>
+                setTransactionId(event.target.value.replace(/\D/g, ""))
+              }
+              className={`${inputClasses} font-mono tracking-wider`}
+              {...describe(
+                "upi-transaction-id",
+                transactionIdError,
+                "12 digits, from the receipt in your UPI app.",
+              )}
+            />
+          </Field>
+          <div className="mt-5 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap">
+            <Button type="submit" disabled={busy} aria-busy={busy}>
+              {busy && (
+                <LoaderCircle
+                  aria-hidden="true"
+                  className="size-4 animate-spin"
+                />
+              )}
+              I have paid · submit transaction ID
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={busy}
+              onClick={closeUpi}
+            >
+              Not now
+            </Button>
+          </div>
+        </form>
+      ) : mockSession ? (
         <div
           role="group"
           aria-labelledby="mock-checkout-title"
@@ -370,9 +564,13 @@ export function PaymentStep({
                   ? "Waiting for checkout…"
                   : phase === "verifying"
                     ? "Verifying payment…"
-                    : registration.paymentStatus === "failed"
-                      ? `Try again · ${amount}`
-                      : `Pay ${amount}`}
+                    : upi
+                      ? registration.paymentStatus === "failed"
+                        ? "Enter transaction ID again"
+                        : `Pay ${amount} by UPI`
+                      : registration.paymentStatus === "failed"
+                        ? `Try again · ${amount}`
+                        : `Pay ${amount}`}
             </Button>
           )}
           {awaitingVerification && (
@@ -402,8 +600,9 @@ export function PaymentStep({
 
       <p className="mt-6 flex items-start gap-2 text-xs leading-relaxed text-subtle">
         <ShieldCheck aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
-        Payment details are entered in the payment gateway&apos;s own secure
-        window. This site never sees or stores card numbers, CVVs or UPI PINs.
+        {upi
+          ? "You pay inside your own UPI app. This site only stores the transaction ID you enter here, and never sees your UPI PIN or bank details."
+          : "Payment details are entered in the payment gateway\u2019s own secure window. This site never sees or stores card numbers, CVVs or UPI PINs."}
       </p>
     </div>
   );

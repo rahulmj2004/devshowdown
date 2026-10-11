@@ -7,7 +7,7 @@ import { Button, ButtonLink } from "@/components/ui/button";
 import { Notice } from "@/components/ui/notice";
 import { useToast } from "@/components/ui/toast";
 import type { RegistrationSummary } from "@/lib/registration/service";
-import { formatPaise } from "@/lib/utils";
+import { formatPaise, telHref } from "@/lib/utils";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
@@ -67,13 +67,11 @@ export function Confirmation({
   registration,
   emailConfigured,
   contact,
-  refundPolicy,
   onRegisterAnother,
 }: {
   registration: RegistrationSummary;
   emailConfigured: boolean;
   contact: { email: string | null; phone: string | null };
-  refundPolicy: string | null;
   onRegisterAnother: () => void;
 }) {
   const toast = useToast();
@@ -218,11 +216,6 @@ export function Confirmation({
                   : "This site does not send confirmation emails yet, so your reference is your proof of registration."}
             </li>
             <li>Check this site for schedule and venue announcements.</li>
-            {paid && !registration.testPayment && (
-              <li>
-                {refundPolicy ?? "A refund policy has not been published yet."}
-              </li>
-            )}
           </ul>
         </div>
         <div>
@@ -243,7 +236,7 @@ export function Confirmation({
                 {contact.phone && (
                   <li>
                     <a
-                      href={`tel:${contact.phone}`}
+                      href={telHref(contact.phone)}
                       className="rounded-sm text-fg underline underline-offset-4 hover:text-lime"
                     >
                       {contact.phone}

@@ -1,6 +1,6 @@
 import type { PaymentState, RegistrationState } from "@/types";
 
-export type PaymentProvider = "razorpay" | "mock";
+export type PaymentProvider = "razorpay" | "upi" | "mock";
 
 export interface StoredEntry {
   eventSlug: string;
@@ -65,7 +65,22 @@ export interface VerifiedPayment {
   currency: string;
   status: "captured" | "authorized" | "failed";
   method: string | null;
-  verifiedVia: "checkout_signature" | "webhook" | "mock";
+  /**
+   * "participant" is only ever a claim (a UPI transaction ID typed in by the
+   * payer) and is always recorded as `authorized`; "organizer" is the decision
+   * an organizer made after checking that claim.
+   */
+  verifiedVia:
+    "checkout_signature" | "webhook" | "mock" | "participant" | "organizer";
+}
+
+/** A UPI payment a participant says they made, awaiting an organizer. */
+export interface PaymentClaim {
+  providerOrderId: string;
+  /** The UPI transaction ID the participant entered. */
+  providerPaymentId: string;
+  amountPaise: number;
+  currency: string;
 }
 
 export type RecordPaymentOutcome =
@@ -74,6 +89,8 @@ export type RecordPaymentOutcome =
   | "pending"
   | "failed"
   | "verification_required"
+  /** That payment id is already recorded against another registration. */
+  | "payment_id_in_use"
   | "order_not_found";
 
 export interface RecordPaymentResult {
@@ -113,6 +130,9 @@ export interface RegistrationStore {
 
   /** Idempotent: safe to call repeatedly with the same payment. */
   recordPayment(payment: VerifiedPayment): Promise<RecordPaymentResult>;
+
+  /** The UPI claim waiting for review on this registration, if there is one. */
+  findPaymentClaim(reference: string): Promise<PaymentClaim | null>;
 
   /**
    * Claims a webhook delivery. Returns false when that delivery was already

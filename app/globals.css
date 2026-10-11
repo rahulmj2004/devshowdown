@@ -443,35 +443,26 @@
   }
 
   /*
-   * Wordmark glyphs the dragon can set alight. The dragon scene writes each
-   * glyph's `--heat` (0 cold, 1 white-hot); at 0 the type is unchanged, so
-   * without the scene nothing here shows.
+   * Wordmark glyphs wired to the hero's circuit board. The circuit scene
+   * writes each glyph's `--charge` (0 idle, 1 fully lit); at 0 the type is
+   * unchanged, so without the scene nothing here shows.
    */
-  .ember {
-    --heat: 0;
+  .charge {
+    --charge: 0;
   }
-  /* Solid glyphs go molten from the foot up as they heat. */
-  .ember-fill {
-    background-image: linear-gradient(
-      to bottom,
-      var(--color-fg) 38%,
-      #fff1c2 50%,
-      #ffc14d 62%,
-      #ff7a1a 78%,
-      #ff3b0a 92%,
-      #c41a00
+  /* Solid glyphs light up lime as they charge. */
+  .charge-fill {
+    color: color-mix(
+      in oklab,
+      var(--color-lime) calc(var(--charge) * 100%),
+      var(--color-fg)
     );
-    background-size: 100% 260%;
-    background-position: 0 calc(var(--heat) * 100%);
-    background-clip: text;
-    -webkit-background-clip: text;
-    color: transparent;
   }
-  /* Hollow glyphs glow along their outline instead. */
-  .ember-stroke {
+  /* Hollow glyphs light along their outline instead. */
+  .charge-stroke {
     --outline-color: color-mix(
       in oklab,
-      #ff8a1f calc(var(--heat) * 100%),
+      var(--color-lime) calc(var(--charge) * 100%),
       var(--color-fg)
     );
   }

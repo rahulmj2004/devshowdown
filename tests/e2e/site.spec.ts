@@ -1,4 +1,8 @@
 import { expect, test } from "@playwright/test";
+import { siteConfig } from "../../config/site";
+
+/** Set while registration is handled by an external (Google) form. */
+const { formUrl } = siteConfig.registration;
 
 test.describe("landing page", () => {
   test("presents the event identity without inventing details", async ({
@@ -29,13 +33,23 @@ test.describe("landing page", () => {
     await expect(
       page.getByText("Final amount awaiting organizer confirmation"),
     ).toBeVisible();
-    await expect(page.getByText("Schedule to be announced")).toBeVisible();
-    await expect(page.getByText("Sponsors to be announced")).toBeVisible();
+    await expect(
+      page.locator("#schedule").getByText("Morning session"),
+    ).toBeVisible();
+    await expect(page.locator("#sponsors")).toHaveCount(0);
+    // The date is confirmed, so the countdown runs and the coordinators show.
     await expect(
       page.getByText("Countdown starts once the event date is announced."),
-    ).toBeAttached();
-    // The home preview must label its sample rows.
-    await expect(page.getByText("Demonstration data")).toBeVisible();
+    ).toHaveCount(0);
+    for (const name of ["Rahul M J", "Advaith U", "Devinandha VR"]) {
+      await expect(
+        page
+          .locator("#coordinators")
+          .getByRole("heading", { level: 3, name, exact: true }),
+      ).toBeVisible();
+    }
+    // No sample leaderboard rows on the front page before results exist.
+    await expect(page.getByText("Demo Player")).toHaveCount(0);
   });
 
   test("main navigation reaches every section", async ({ page }) => {
@@ -81,7 +95,6 @@ test.describe("landing page", () => {
     for (const [name, path] of [
       ["Leaderboard", "/leaderboard"],
       ["Terms", "/terms"],
-      ["Refunds", "/refunds"],
       ["Privacy", "/privacy"],
     ]) {
       await page
@@ -181,9 +194,20 @@ test.describe("events", () => {
 });
 
 test.describe("registration (default state)", () => {
+  test("sends people to the external registration form when one is set", async ({
+    page,
+  }) => {
+    test.skip(formUrl === null, "no external form is configured");
+    await page.goto("/register");
+    const link = page.getByRole("link", { name: /Open the registration form/ });
+    await expect(link).toHaveAttribute("href", formUrl!);
+    await expect(link).toHaveAttribute("target", "_blank");
+  });
+
   test("does not accept entries before registration opens", async ({
     page,
   }) => {
+    test.skip(formUrl !== null, "the external form replaces the built-in one");
     await page.goto("/register");
     await expect(
       page.getByText("Registration not open yet").first(),

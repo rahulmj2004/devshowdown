@@ -11,8 +11,9 @@ import { Notice } from "@/components/ui/notice";
 import { getEventBySlug, getEvents } from "@/config/events";
 import type { AdminResult } from "@/lib/data/admin";
 import { formatCompletionTime, formatScore } from "@/lib/scoring";
+import { formatPaise } from "@/lib/utils";
 import type { RegistrationRecord, SiteSettings } from "@/types";
-import { ResultForm, SettingsForm } from "./action-forms";
+import { ResultForm, SettingsForm, UpiReviewForm } from "./action-forms";
 
 export interface DashboardData {
   settings: SiteSettings;
@@ -119,6 +120,19 @@ export function AdminDashboard({
     (result) => result.published,
   ).length;
 
+  // One row per registration: a registration with several events is one payment.
+  const upiClaims = [
+    ...new Map(
+      data.registrations
+        .filter(
+          (record) =>
+            record.paymentStatus === "verification_required" &&
+            record.upiTransactionId !== null,
+        )
+        .map((record) => [record.reference, record]),
+    ).values(),
+  ];
+
   const stats = [
     {
       label: "Registrations",
@@ -192,6 +206,80 @@ export function AdminDashboard({
           }}
         />
       </Panel>
+
+      {upiClaims.length > 0 && (
+        <Panel
+          title={`UPI payments to check (${upiClaims.length})`}
+          description="Find each transaction ID in your UPI app's history and confirm the amount before marking it paid. Rejecting lets the participant enter a different ID."
+        >
+          <div className="overflow-x-auto rounded-xl border border-line">
+            <table className="w-full min-w-[48rem] text-sm">
+              <caption className="sr-only">
+                UPI payments awaiting review
+              </caption>
+              <thead>
+                <tr className="border-b border-line eyebrow text-subtle">
+                  <th scope="col" className={th}>
+                    Name
+                  </th>
+                  <th scope="col" className={th}>
+                    Reference
+                  </th>
+                  <th scope="col" className={`${th} text-right`}>
+                    Amount
+                  </th>
+                  <th scope="col" className={th}>
+                    UPI transaction ID
+                  </th>
+                  <th scope="col" className={th}>
+                    Phone
+                  </th>
+                  <th scope="col" className={`${th} text-right`}>
+                    Decision
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {upiClaims.map((record) => (
+                  <tr key={record.reference}>
+                    <th
+                      scope="row"
+                      className={`${td} text-left font-medium text-fg`}
+                    >
+                      {record.fullName}
+                      {record.status === "superseded" && (
+                        <span className="block text-xs font-normal text-warn">
+                          Replaced by a newer registration
+                        </span>
+                      )}
+                    </th>
+                    <td className={`${td} font-mono text-xs text-muted`}>
+                      {record.reference}
+                    </td>
+                    <td
+                      className={`${td} text-right font-mono text-fg tabular-nums`}
+                    >
+                      {formatPaise(record.amountPaise)}
+                    </td>
+                    <td className={`${td} font-mono text-fg select-all`}>
+                      {record.upiTransactionId}
+                    </td>
+                    <td className={`${td} text-muted`}>
+                      {record.phone ?? "—"}
+                    </td>
+                    <td className={td}>
+                      <UpiReviewForm
+                        reference={record.reference}
+                        name={record.fullName}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
+      )}
 
       <Panel
         title="Registrations"

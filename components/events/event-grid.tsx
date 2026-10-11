@@ -1,6 +1,6 @@
 import { Reveal } from "@/components/ui/reveal";
 import { cn } from "@/lib/utils";
-import type { EventConfig, RegistrationStatus } from "@/types";
+import type { EventConfig } from "@/types";
 import { EventCard } from "./event-card";
 
 /**
@@ -16,13 +16,7 @@ const spans = [
   "lg:col-span-12",
 ];
 
-export function EventGrid({
-  events,
-  registrationStatus,
-}: {
-  events: readonly EventConfig[];
-  registrationStatus: RegistrationStatus;
-}) {
+export function EventGrid({ events }: { events: readonly EventConfig[] }) {
   return (
     <ul className="grid gap-5 lg:grid-cols-12 lg:gap-6">
       {events.map((event, index) => {
@@ -32,7 +26,6 @@ export function EventGrid({
             <Reveal delay={(index % 2) * 0.1} className="h-full">
               <EventCard
                 event={event}
-                registrationStatus={registrationStatus}
                 index={index}
                 total={events.length}
                 wide={slot === 4}

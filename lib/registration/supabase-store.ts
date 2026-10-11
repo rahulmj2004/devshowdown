@@ -4,6 +4,7 @@ import { z } from "zod";
 import type {
   CreateRegistrationResult,
   NewRegistration,
+  PaymentClaim,
   RecordPaymentResult,
   RegistrationStore,
   StoredOrder,
@@ -91,13 +92,14 @@ const recordResultSchema = z.object({
     "pending",
     "failed",
     "verification_required",
+    "payment_id_in_use",
     "order_not_found",
   ]),
   registration: z.unknown().nullable(),
 });
 
 const orderRowSchema = z.object({
-  provider: z.enum(["razorpay", "mock"]),
+  provider: z.enum(["razorpay", "upi", "mock"]),
   provider_order_id: z.string(),
   amount_paise: z.number().int(),
   currency: z.string(),
@@ -114,6 +116,13 @@ function toOrder(value: unknown): StoredOrder {
     status: row.status,
   };
 }
+
+const claimSchema = z.object({
+  provider_order_id: z.string(),
+  provider_payment_id: z.string(),
+  amount_paise: z.number().int(),
+  currency: z.string(),
+});
 
 const ORDER_COLUMNS =
   "provider, provider_order_id, amount_paise, currency, status";
@@ -232,6 +241,21 @@ export class SupabaseRegistrationStore implements RegistrationStore {
       registration: result.registration
         ? fromSnapshot(result.registration)
         : null,
+    };
+  }
+
+  async findPaymentClaim(reference: string): Promise<PaymentClaim | null> {
+    const { data, error } = await this.supabase.rpc("find_payment_claim", {
+      p_reference: reference,
+    });
+    if (error) throw new StoreError("find_payment_claim", error);
+    if (!data) return null;
+    const row = claimSchema.parse(data);
+    return {
+      providerOrderId: row.provider_order_id,
+      providerPaymentId: row.provider_payment_id,
+      amountPaise: row.amount_paise,
+      currency: row.currency,
     };
   }
 

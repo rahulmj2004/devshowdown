@@ -6,6 +6,9 @@ import { z } from "zod";
 import { getEventSlugs } from "@/config/events";
 import { requireAdmin } from "@/lib/data/admin";
 import { CACHE_TAGS } from "@/lib/data/tags";
+import { getRegistrationContext } from "@/lib/registration/context";
+import { reviewUpiPayment } from "@/lib/registration/service";
+import { REFERENCE_PATTERN } from "@/lib/validation/registration";
 import { createSessionClient } from "@/lib/supabase/session";
 
 export type ActionState = { ok: boolean; message: string } | null;
@@ -171,4 +174,57 @@ export async function deleteResultAction(formData: FormData): Promise<void> {
   await supabase.from("results").delete().eq("id", id.data);
   updateTag(CACHE_TAGS.results);
   refresh();
+}
+
+const upiReviewSchema = z.object({
+  reference: z.string().regex(REFERENCE_PATTERN),
+  decision: z.enum(["approve", "reject"]),
+});
+
+/**
+ * Approves or rejects a UPI payment a participant reported, after the
+ * organizer has checked it against their own UPI history.
+ */
+export async function reviewUpiPaymentAction(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const supabase = await requireAdmin();
+  if (!supabase) return NOT_AUTHORIZED;
+
+  const parsed = upiReviewSchema.safeParse({
+    reference: formData.get("reference"),
+    decision: formData.get("decision"),
+  });
+  if (!parsed.success) return { ok: false, message: "Unknown registration." };
+
+  const outcome = await reviewUpiPayment(
+    await getRegistrationContext(),
+    parsed.data.reference,
+    parsed.data.decision,
+  );
+  refresh();
+
+  const { reference } = parsed.data;
+  switch (outcome) {
+    case "approved":
+      return { ok: true, message: `${reference} marked as paid.` };
+    case "rejected":
+      return {
+        ok: true,
+        message: `${reference} rejected. The participant can enter another transaction ID.`,
+      };
+    case "nothing_to_review":
+      return {
+        ok: false,
+        message: `${reference} has no UPI payment waiting for review.`,
+      };
+    case "needs_attention":
+      return {
+        ok: false,
+        message: `${reference} could not be settled automatically (it may have been replaced by a newer registration). Check it by hand.`,
+      };
+    default:
+      return { ok: false, message: "The decision could not be saved." };
+  }
 }

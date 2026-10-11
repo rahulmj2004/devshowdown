@@ -1,13 +1,8 @@
-import { ArrowRight, ArrowUpRight } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { Tilt } from "@/components/motion/tilt";
-import { buttonClasses } from "@/components/ui/button";
-import {
-  getRegistrationLabel,
-  isEventRegistrationOpen,
-} from "@/lib/registration-status";
 import { cn } from "@/lib/utils";
-import type { EventConfig, RegistrationStatus } from "@/types";
+import type { EventConfig } from "@/types";
 import { accentStyle } from "./accent";
 import { EventIcon } from "./event-icon";
 import { EventMeta } from "./event-meta";
@@ -17,23 +12,23 @@ import { EventVisual } from "./event-visual";
 /**
  * One competition, presented as its own arena: a distinct illustration and
  * accent colour inside a shared frame. `wide` lays it out side by side on
- * large screens.
+ * large screens. Teams register once for the whole event, so a card never
+ * carries its own register button.
  */
 export function EventCard({
   event,
-  registrationStatus,
   index,
   total,
   wide = false,
 }: {
   event: EventConfig;
-  registrationStatus: RegistrationStatus;
   /** Zero-based position, shown as "01 / 05". */
   index?: number;
   total?: number;
   wide?: boolean;
 }) {
-  const registrationOpen = isEventRegistrationOpen(event, registrationStatus);
+  const number =
+    index === undefined ? null : String(index + 1).padStart(2, "0");
 
   return (
     <Tilt className="h-full">
@@ -44,13 +39,41 @@ export function EventCard({
           "transition-[border-color,box-shadow] duration-500 ease-out",
           "hover:border-(--accent)/60 hover:shadow-[0_30px_80px_-40px_var(--accent)]",
           "focus-within:border-(--accent)/60",
-          wide && "lg:grid lg:grid-cols-[1.15fr_1fr]",
+          wide && "lg:grid lg:grid-cols-[1.15fr_1fr] lg:grid-rows-[auto_1fr]",
         )}
       >
+        {/* Accent hairline that lights up with the card. */}
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 top-0 z-10 h-px bg-linear-to-r from-transparent via-(--accent) to-transparent opacity-50 transition-opacity duration-500 group-focus-within:opacity-100 group-hover:opacity-100"
+        />
+
+        {/* Title bar: where this round sits in the day, and its state. */}
+        <div
+          className={cn(
+            "flex items-center justify-between gap-3 border-b border-line bg-bg/60 px-5 py-3 sm:px-6",
+            wide && "lg:col-span-2",
+          )}
+        >
+          <p className="flex min-w-0 items-center gap-3 font-mono text-[11px] tracking-[0.16em] uppercase">
+            {number && total !== undefined && (
+              <span aria-hidden="true" className="shrink-0 text-subtle">
+                <span className="text-(--accent)">{number}</span> /{" "}
+                {String(total).padStart(2, "0")}
+              </span>
+            )}
+            <span className="flex min-w-0 items-center gap-2 text-(--accent)">
+              <EventIcon icon={event.icon} className="size-3.5 shrink-0" />
+              <span className="truncate">{event.category}</span>
+            </span>
+          </p>
+          <EventStatusBadge status={event.status} />
+        </div>
+
         <div
           className={cn(
             "relative h-60 border-b border-line sm:h-72",
-            wide && "lg:h-auto lg:min-h-80 lg:border-r lg:border-b-0",
+            wide && "lg:h-auto lg:min-h-88 lg:border-r lg:border-b-0",
           )}
         >
           <div className="absolute inset-0 transition-transform duration-700 ease-out group-hover:scale-[1.025]">
@@ -67,78 +90,54 @@ export function EventCard({
           />
         </div>
 
-        <div className="relative flex flex-1 flex-col p-6 sm:p-8">
-          <div className="flex items-center justify-between gap-3">
-            <p className="flex items-center gap-2 eyebrow text-(--accent)">
-              <EventIcon icon={event.icon} className="size-4" />
-              {event.category}
-            </p>
-            <div className="flex items-center gap-3">
-              <EventStatusBadge status={event.status} />
-              {index !== undefined && total !== undefined && (
-                <span
-                  aria-hidden="true"
-                  className="font-mono text-[11px] text-subtle"
-                >
-                  {String(index + 1).padStart(2, "0")} /{" "}
-                  {String(total).padStart(2, "0")}
-                </span>
-              )}
-            </div>
-          </div>
+        <div className="relative flex flex-1 flex-col overflow-hidden p-6 sm:p-8">
+          {/* Oversized hollow round number behind the copy. */}
+          {number && (
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute top-1 right-4 hidden display text-[7rem] leading-none text-outline opacity-60 transition-opacity duration-500 select-none [--outline-color:color-mix(in_oklab,var(--accent)_30%,transparent)] group-hover:opacity-100 sm:block"
+            >
+              {number}
+            </span>
+          )}
 
           <h3
             data-text={event.title}
             className={cn(
-              "mt-5 display text-5xl text-fg sm:text-6xl",
+              "relative display text-5xl text-fg sm:text-6xl",
               event.visual === "debug" && "glitch",
             )}
           >
             {event.title}
           </h3>
-          <p className="mt-3 font-mono text-xs tracking-[0.14em] text-(--accent) uppercase">
+          <p className="relative mt-3 flex items-center gap-3 font-mono text-xs tracking-[0.14em] text-(--accent) uppercase">
+            <span aria-hidden="true" className="h-px w-6 bg-(--accent)/70" />
             {event.tagline}
           </p>
-          <p className="mt-4 max-w-md text-sm leading-relaxed text-muted">
+          <p className="relative mt-4 max-w-md text-sm leading-relaxed text-muted">
             {event.summary}
           </p>
 
-          <div className="mt-6">
+          <div className="relative mt-7">
             <EventMeta event={event} />
           </div>
 
-          <div className="mt-auto flex flex-wrap items-center justify-between gap-3 pt-8">
+          <div className="mt-auto pt-7">
             {/* The stretched pseudo-element makes the whole card a link target. */}
             <Link
               href={`/events/${event.slug}`}
-              className="inline-flex items-center gap-1.5 rounded-sm eyebrow text-fg transition-colors group-hover:text-(--accent) after:absolute after:inset-0"
+              className="flex items-center justify-between gap-4 rounded-sm eyebrow text-fg transition-colors group-hover:text-(--accent) after:absolute after:inset-0"
             >
-              Learn more <span className="sr-only">about {event.title}</span>
-              <ArrowUpRight
-                aria-hidden="true"
-                className="size-4 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
-              />
-            </Link>
-
-            {registrationOpen ? (
-              <Link
-                href={`/register?event=${event.slug}`}
-                className={buttonClasses({
-                  size: "sm",
-                  className: "group/register z-10",
-                })}
-              >
-                Register <span className="sr-only">for {event.title}</span>
-                <ArrowRight
-                  aria-hidden="true"
-                  className="size-3.5 transition-transform duration-300 group-hover/register:translate-x-0.5"
-                />
-              </Link>
-            ) : (
-              <span className="font-mono text-[11px] text-subtle">
-                {getRegistrationLabel(event, registrationStatus)}
+              <span>
+                Learn more <span className="sr-only">about {event.title}</span>
               </span>
-            )}
+              <span
+                aria-hidden="true"
+                className="flex size-9 items-center justify-center border border-line-strong text-fg transition-colors duration-300 group-hover:border-(--accent) group-hover:bg-(--accent) group-hover:text-[#060608]"
+              >
+                <ArrowUpRight className="size-4 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+              </span>
+            </Link>
           </div>
         </div>
       </article>

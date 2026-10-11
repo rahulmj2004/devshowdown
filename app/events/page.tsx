@@ -34,10 +34,7 @@ export default async function EventsPage() {
       </PageHeader>
       <div className="container-page py-14 sm:py-20">
         <h2 className="sr-only">All events</h2>
-        <EventGrid
-          events={events}
-          registrationStatus={settings.registrationStatus}
-        />
+        <EventGrid events={events} />
       </div>
     </>
   );

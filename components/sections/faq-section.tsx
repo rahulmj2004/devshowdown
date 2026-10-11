@@ -9,7 +9,7 @@ import { faqs } from "@/config/site";
  * accessible by default and needs no client JavaScript; the shared `name`
  * makes the items mutually exclusive in supporting browsers.
  */
-export function FaqSection() {
+export function FaqSection({ index }: { index: string }) {
   return (
     <section
       id="faq"
@@ -20,7 +20,7 @@ export function FaqSection() {
         <div className="lg:sticky lg:top-28 lg:self-start">
           <SectionHeading
             id="faq-heading"
-            index="08"
+            index={index}
             eyebrow="FAQ"
             title="Questions, answered"
             description="Some details are still being finalized. Anything unconfirmed is labelled, not guessed."

@@ -70,8 +70,9 @@ export default function TermsPage() {
         <section>
           <h2>Organizer and contact</h2>
           <p>
-            {details.organizer ??
-              "The organizing body has not been published yet."}{" "}
+            {details.organizer
+              ? `Organized by the ${details.organizer}.`
+              : "The organizing body has not been published yet."}{" "}
             {contact.email ? (
               <a href={`mailto:${contact.email}`}>{contact.email}</a>
             ) : (

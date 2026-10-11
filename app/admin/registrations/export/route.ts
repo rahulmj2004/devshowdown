@@ -36,6 +36,8 @@ export async function GET() {
       "Team",
       "Team members",
       "Phone",
+      "Amount (INR)",
+      "UPI transaction ID",
       "Registered at",
     ],
     records.map((record) => [
@@ -50,6 +52,8 @@ export async function GET() {
       record.teamName,
       record.teamMembers.join("; "),
       record.phone,
+      record.amountPaise / 100,
+      record.upiTransactionId,
       record.createdAt,
     ]),
   );

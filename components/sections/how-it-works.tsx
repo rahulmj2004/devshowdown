@@ -5,19 +5,19 @@ import { SectionHeading } from "@/components/ui/section-heading";
 const steps = [
   {
     title: "Register",
-    text: "Sign up on this site once registration opens. It takes a couple of minutes.",
+    text: "Form a team of 3 and register through the form. The entry fee is ₹150 per team.",
   },
   {
     title: "Choose your challenge",
-    text: "Pick the competition that fits you, or the one that scares you a little.",
+    text: "Debugging, Speed Typing and Blind Coding run in the morning. Each team member takes on one of them.",
   },
   {
     title: "Compete",
-    text: "Show up, take on the challenge, and hand in your work before the clock runs out.",
+    text: "Every member scores points for the team. The top 5 teams advance to the Treasure Hunt and the Coding round.",
   },
   {
     title: "Results",
-    text: "Published results decide where you land on the leaderboard.",
+    text: "The top 2 teams in the Treasure Hunt take home the prize money.",
   },
 ] as const;
 

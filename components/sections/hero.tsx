@@ -1,7 +1,7 @@
 import { ArrowDownRight, ArrowRight } from "lucide-react";
 import type { CSSProperties } from "react";
+import { CircuitBoard } from "@/components/hero/circuit-board";
 import { Countdown } from "@/components/hero/countdown";
-import { DragonFire } from "@/components/hero/dragon-fire";
 import { HeroCore } from "@/components/hero/hero-core";
 import { ParallaxLayer, PointerLight } from "@/components/hero/hero-layers";
 import { Magnetic } from "@/components/motion/magnetic";
@@ -25,7 +25,7 @@ function Characters({
   className?: string;
 }) {
   return [...text].map((character, index) => (
-    <span key={index} data-ember className="char-mask ember">
+    <span key={index} data-charge className="char-mask charge">
       <span
         className={cn("char", className)}
         style={{ "--i": offset + index } as CSSProperties}
@@ -47,8 +47,8 @@ export function Hero({
   const registrationOpen = settings.registrationStatus === "open";
 
   const facts = [
-    { label: "Date", value: details.dates },
-    { label: "Venue", value: details.venue },
+    { label: "Date", value: details.dates, href: null },
+    { label: "Venue", value: details.venue, href: details.venueMapUrl },
   ];
 
   return (
@@ -61,8 +61,9 @@ export function Hero({
       <div aria-hidden="true" className="absolute inset-0 -z-10">
         <div className="absolute inset-0 animate-grid-pan bg-grid" />
         <div className="absolute inset-0 bg-[radial-gradient(60rem_40rem_at_78%_30%,#7b3dff2e,transparent_70%)]" />
-        {/* Lightning, drawn by the dragon scene (see DragonFire). */}
+        {/* Lightning, then the circuit board that draws it (CircuitBoard). */}
         <canvas data-storm-sky className="absolute inset-0 size-full" />
+        <CircuitBoard className="absolute inset-0 size-full" />
         <PointerLight />
         <ParallaxLayer
           speed={0.22}
@@ -99,7 +100,7 @@ export function Hero({
         {/* ------------------------------------------------------- wordmark */}
         <ParallaxLayer speed={-0.07} className="mt-6 sm:mt-8">
           <h1
-            data-fire-wordmark
+            data-circuit-wordmark
             className="display text-[20.5vw] leading-[0.84] text-fg lg:text-[min(14.9vw,13.6rem)] lg:whitespace-nowrap"
           >
             <span className="sr-only">DevShowdown</span>
@@ -107,11 +108,11 @@ export function Hero({
               <Characters
                 text="DEV"
                 offset={0}
-                className="ember-stroke text-outline [-webkit-text-stroke-width:2px]"
+                className="charge-stroke text-outline [-webkit-text-stroke-width:2px]"
               />
             </span>
             <span aria-hidden="true" className="block lg:inline">
-              <Characters text="SHOWDOWN" offset={3} className="ember-fill" />
+              <Characters text="SHOWDOWN" offset={3} className="charge-fill" />
             </span>
           </h1>
         </ParallaxLayer>
@@ -177,7 +178,24 @@ export function Hero({
                 <div key={fact.label} className="min-w-0">
                   <dt className="eyebrow text-subtle">{fact.label}</dt>
                   <dd className="mt-1.5 text-sm text-fg sm:text-base">
-                    {fact.value ?? <Tba label="To be announced" />}
+                    {!fact.value ? (
+                      <Tba label="To be announced" />
+                    ) : fact.href ? (
+                      <a
+                        href={fact.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-sm underline decoration-line-strong underline-offset-4 transition-colors hover:text-lime hover:decoration-lime"
+                      >
+                        {fact.value}
+                        <span className="sr-only">
+                          {" "}
+                          (opens map in a new tab)
+                        </span>
+                      </a>
+                    ) : (
+                      fact.value
+                    )}
                   </dd>
                 </div>
               ))}
@@ -210,9 +228,6 @@ export function Hero({
           </div>
         </div>
       </div>
-
-      {/* The dragon flies over the content but never takes input. */}
-      <DragonFire className="pointer-events-none absolute inset-0 z-10 size-full" />
 
       {/* ---------------------------------------------------- scroll cue */}
       <a

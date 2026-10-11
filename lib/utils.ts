@@ -28,3 +28,8 @@ export function formatPaise(paise: number): string {
 export function formatNumber(value: number): string {
   return rupeeFormatter.format(value);
 }
+
+/** Builds a `tel:` link from a display number, e.g. "+91 98765 43210". */
+export function telHref(phone: string): string {
+  return `tel:${phone.replace(/[^\d+]/g, "")}`;
+}

@@ -12,14 +12,9 @@ import type { ComponentType, ReactNode, SVGProps } from "react";
 import { EventIcon } from "@/components/events/event-icon";
 import { EventStatusBadge } from "@/components/events/event-status";
 import { EventVisual } from "@/components/events/event-visual";
-import { Badge, Tba } from "@/components/ui/badge";
-import { ButtonLink } from "@/components/ui/button";
+import { Tba } from "@/components/ui/badge";
 import { getEventBySlug, getEvents } from "@/config/events";
-import { getSiteSettings } from "@/lib/data/settings";
-import {
-  getRegistrationLabel,
-  isEventRegistrationOpen,
-} from "@/lib/registration-status";
+import { siteConfig } from "@/config/site";
 import { accentStyle } from "@/components/events/accent";
 import { cn, formatRupees } from "@/lib/utils";
 
@@ -83,15 +78,6 @@ export async function EventDetails({
   const event = getEventBySlug(slug);
   if (!event) notFound();
 
-  const settings = await getSiteSettings();
-  const registrationOpen = isEventRegistrationOpen(
-    event,
-    settings.registrationStatus,
-  );
-  const registrationLabel = getRegistrationLabel(
-    event,
-    settings.registrationStatus,
-  );
   const otherEvents = getEvents().filter((other) => other.slug !== event.slug);
 
   const glance = [
@@ -100,30 +86,8 @@ export async function EventDetails({
     { label: "Team size", value: event.teamSize },
     { label: "Eligibility", value: event.eligibility },
   ];
+  const { teamFee } = siteConfig.registration;
   const eventNumber = getEvents().findIndex((item) => item.slug === event.slug);
-
-  const registerCta = registrationOpen ? (
-    <ButtonLink
-      href={`/register?event=${event.slug}`}
-      size="lg"
-      className="group w-full sm:w-auto"
-    >
-      Register for this event
-      <ArrowRight
-        aria-hidden="true"
-        className="size-4 transition-transform duration-300 group-hover:translate-x-1"
-      />
-    </ButtonLink>
-  ) : (
-    <ButtonLink
-      href="/register"
-      size="lg"
-      variant="secondary"
-      className="w-full sm:w-auto"
-    >
-      View registration status
-    </ButtonLink>
-  );
 
   return (
     <article style={accentStyle(event.accent)}>
@@ -168,11 +132,7 @@ export async function EventDetails({
               </p>
               <div className="mt-6 flex flex-wrap gap-2">
                 <EventStatusBadge status={event.status} />
-                <Badge tone={registrationOpen ? "success" : "neutral"} dot>
-                  {registrationLabel}
-                </Badge>
               </div>
-              <div className="mt-8">{registerCta}</div>
             </div>
 
             <div className="relative h-64 overflow-hidden border border-line sm:h-80">
@@ -239,7 +199,12 @@ export async function EventDetails({
                 <dt className="text-muted">Entry fee</dt>
                 <dd className="text-right text-fg">
                   {event.fee === null ? (
-                    <Tba label="TBA" />
+                    teamFee === null ? (
+                      <Tba label="TBA" />
+                    ) : (
+                      // One fee per team covers every competition.
+                      `${formatRupees(teamFee)} per team, all events`
+                    )
                   ) : event.fee === 0 ? (
                     "Free"
                   ) : (
@@ -247,12 +212,7 @@ export async function EventDetails({
                   )}
                 </dd>
               </div>
-              <div className="flex items-center justify-between gap-4 py-3 text-sm">
-                <dt className="text-muted">Registration</dt>
-                <dd className="text-right text-fg">{registrationLabel}</dd>
-              </div>
             </dl>
-            <div className="mt-5 [&>a]:w-full">{registerCta}</div>
           </div>
         </aside>
       </div>

@@ -3,12 +3,14 @@ import { z } from "zod";
 import { resolveFeePaise } from "@/lib/payments/mode";
 import { sha256Hex } from "@/lib/payments/signature";
 import type { PaymentGateway } from "@/lib/payments/types";
+import { upiOrderId, type UpiPayee } from "@/lib/payments/upi";
 import { isEventRegistrationOpen } from "@/lib/registration-status";
 import {
   checkoutPayloadSchema,
   createRegistrationSchema,
   registrationAccessSchema,
   toFieldErrors,
+  upiPaymentSchema,
   type RegistrationFieldErrors,
 } from "@/lib/validation/registration";
 import type {
@@ -36,6 +38,8 @@ export interface RegistrationContext {
   gateway: PaymentGateway | null;
   paymentMode: PaymentMode;
   paymentUnavailableReason: string | null;
+  /** Who receives UPI payments. Needed when `paymentMode` is "upi". */
+  upi?: UpiPayee | null;
   events: readonly EventConfig[];
   registrationStatus: RegistrationStatus;
   phoneField: PhoneFieldMode;
@@ -86,6 +90,16 @@ export type CheckoutSession =
       currency: string;
       prefill: { name: string; email: string; contact: string | undefined };
     }
+  | {
+      /** Direct UPI: the participant pays in their own app, then reports it. */
+      mode: "upi";
+      vpa: string;
+      payeeName: string;
+      amountPaise: number;
+      currency: string;
+      /** Goes in the payment note so organizers can match the payment. */
+      note: string;
+    }
   | { mode: "mock"; orderId: string; amountPaise: number; currency: string };
 
 export type StartPaymentResponse =
@@ -99,7 +113,11 @@ export type StartPaymentResponse =
 export type PaymentResponse =
   | { status: "settled"; registration: RegistrationSummary }
   /** The proof sent by the browser did not check out. Nothing was changed. */
-  | { status: "rejected"; registration: RegistrationSummary | null }
+  | {
+      status: "rejected";
+      registration: RegistrationSummary | null;
+      reason?: "invalid_transaction_id" | "transaction_id_in_use";
+    }
   | { status: "not_found" }
   | { status: "error" };
 
@@ -353,6 +371,13 @@ export async function startPayment(
           amountPaise: registration.amountPaise,
           currency: "INR",
         });
+      } else if (provider === "upi") {
+        order = await context.store.saveOrder(registration.id, {
+          provider: "upi",
+          providerOrderId: upiOrderId(registration.reference),
+          amountPaise: registration.amountPaise,
+          currency: "INR",
+        });
       } else {
         if (!context.gateway) return { status: "error" };
         const created = await context.gateway.createOrder({
@@ -386,6 +411,20 @@ export async function startPayment(
           orderId: order.providerOrderId,
           amountPaise: order.amountPaise,
           currency: order.currency,
+        },
+      };
+    }
+    if (order.provider === "upi") {
+      if (!context.upi) return { status: "error" };
+      return {
+        status: "ready",
+        checkout: {
+          mode: "upi",
+          vpa: context.upi.vpa,
+          payeeName: context.upi.payeeName,
+          amountPaise: order.amountPaise,
+          currency: order.currency,
+          note: registration.reference,
         },
       };
     }
@@ -530,6 +569,118 @@ export async function completeMockPayment(
   } catch (error) {
     console.error("[payments] mock payment failed:", error);
     return { status: "error" };
+  }
+}
+
+/* ------------------------------------------------------------------- upi */
+
+/**
+ * Records the UPI transaction ID a participant says they paid with. This is
+ * only ever a claim: the registration moves to "verification required" and
+ * stays unconfirmed until an organizer has found the payment in their own UPI
+ * history. A transaction ID already used for another registration is refused.
+ */
+export async function submitUpiPayment(
+  context: RegistrationContext,
+  access: unknown,
+  payload: unknown,
+): Promise<PaymentResponse> {
+  if (context.paymentMode !== "upi") return { status: "error" };
+
+  try {
+    const registration = await findByAccess(context, access);
+    if (!registration) return { status: "not_found" };
+    const summary = () => toSummary(registration, context);
+
+    const payable =
+      registration.status === "pending_payment" &&
+      (registration.paymentStatus === "pending" ||
+        registration.paymentStatus === "failed");
+    // Already reported or already settled: show it as it stands.
+    if (!payable) return { status: "settled", registration: summary() };
+
+    const claim = upiPaymentSchema.safeParse(payload);
+    if (!claim.success) {
+      return {
+        status: "rejected",
+        registration: summary(),
+        reason: "invalid_transaction_id",
+      };
+    }
+    const order = await context.store.getOpenOrder(registration.id);
+    if (!order || order.provider !== "upi") {
+      return { status: "rejected", registration: summary() };
+    }
+
+    const result = await context.store.recordPayment({
+      provider: "upi",
+      providerOrderId: order.providerOrderId,
+      providerPaymentId: claim.data.transactionId,
+      amountPaise: order.amountPaise,
+      currency: order.currency,
+      status: "authorized",
+      method: "upi",
+      verifiedVia: "participant",
+    });
+    if (result.outcome === "payment_id_in_use") {
+      return {
+        status: "rejected",
+        registration: summary(),
+        reason: "transaction_id_in_use",
+      };
+    }
+    return {
+      status: "settled",
+      registration: toSummary(result.registration ?? registration, context),
+    };
+  } catch (error) {
+    console.error("[payments] UPI claim failed:", error);
+    return { status: "error" };
+  }
+}
+
+export type UpiReviewOutcome =
+  /** No UPI claim is waiting on that registration. */
+  "nothing_to_review" | "approved" | "rejected" | "needs_attention" | "error";
+
+/**
+ * An organizer's decision on a UPI claim. The caller must already have
+ * checked that the request comes from an organizer. Approving confirms the
+ * registration; rejecting reopens it so the participant can enter the right
+ * transaction ID.
+ */
+export async function reviewUpiPayment(
+  context: RegistrationContext,
+  reference: string,
+  decision: "approve" | "reject",
+): Promise<UpiReviewOutcome> {
+  try {
+    const claim = await context.store.findPaymentClaim(reference);
+    if (!claim) return "nothing_to_review";
+
+    const result = await context.store.recordPayment({
+      provider: "upi",
+      providerOrderId: claim.providerOrderId,
+      providerPaymentId: claim.providerPaymentId,
+      amountPaise: claim.amountPaise,
+      currency: claim.currency,
+      status: decision === "approve" ? "captured" : "failed",
+      method: "upi",
+      verifiedVia: "organizer",
+    });
+    if (result.outcome === "confirmed" && result.registration) {
+      await notifyConfirmed(context, result.registration);
+    }
+    if (decision === "reject") {
+      return result.outcome === "failed" ? "rejected" : "needs_attention";
+    }
+    return result.outcome === "confirmed" ||
+      result.outcome === "already_confirmed"
+      ? "approved"
+      : "needs_attention";
+  } catch (error) {
+    console.error("[payments] UPI review failed:", error);
+    return "error";
   }
 }
 

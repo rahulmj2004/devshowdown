@@ -7,6 +7,7 @@ import {
   createRegistration,
   getRegistration,
   startPayment,
+  submitUpiPayment,
   type CreateRegistrationResponse,
   type PaymentResponse,
   type RegistrationSummary,
@@ -54,6 +55,17 @@ export async function verifyPayment(
   payload: unknown,
 ): Promise<PaymentResponse> {
   return confirmCheckout(await getRegistrationContext(), access, payload);
+}
+
+/**
+ * Records the UPI transaction ID a participant paid with. It is a claim for
+ * an organizer to check, never a confirmation.
+ */
+export async function reportUpiPayment(
+  access: unknown,
+  payload: unknown,
+): Promise<PaymentResponse> {
+  return submitUpiPayment(await getRegistrationContext(), access, payload);
 }
 
 /** Resolves a simulated payment. Refused unless the mock gateway is active. */

@@ -59,12 +59,14 @@ const registrationRowSchema = z.object({
   team_name: z.string().nullable(),
   team_members: z.array(z.string()),
   phone: z.string().nullable(),
+  amount_paise: z.number().int(),
+  upi_transaction_id: z.string().nullable(),
   created_at: z.string(),
 });
 
 /**
  * One row per event entry, from the organizer-only view defined in
- * supabase/migrations/0002. Row Level Security on the underlying tables
+ * supabase/migrations (0002, extended in 0003). Row Level Security on the underlying tables
  * applies to the signed-in organizer's client.
  */
 export async function listRegistrations(
@@ -73,7 +75,7 @@ export async function listRegistrations(
   const { data, error } = await supabase
     .from("admin_registration_entries")
     .select(
-      "id, reference, status, payment_status, is_test, full_name, email, organization, event_slug, team_name, team_members, phone, created_at",
+      "id, reference, status, payment_status, is_test, full_name, email, organization, event_slug, team_name, team_members, phone, amount_paise, upi_transaction_id, created_at",
     )
     .order("created_at", { ascending: false })
     .limit(5000);
@@ -96,6 +98,8 @@ export async function listRegistrations(
       teamName: row.team_name,
       teamMembers: row.team_members,
       phone: row.phone,
+      amountPaise: row.amount_paise,
+      upiTransactionId: row.upi_transaction_id,
       createdAt: row.created_at,
     })),
   };

@@ -6,6 +6,7 @@ import { sendConfirmationEmail } from "@/lib/email";
 import { env, isRegistrationBackendConfigured } from "@/lib/env";
 import { createRazorpayGateway } from "@/lib/payments/gateway";
 import { resolvePaymentMode } from "@/lib/payments/mode";
+import { resolveUpiPayee } from "@/lib/payments/upi";
 import type { PaymentGateway } from "@/lib/payments/types";
 import { createServiceClient } from "@/lib/supabase/service";
 import { MemoryRegistrationStore } from "./memory-store";
@@ -13,11 +14,16 @@ import type { RegistrationContext } from "./service";
 import { SupabaseRegistrationStore } from "./supabase-store";
 import type { RegistrationStore } from "./types";
 
+/** Who receives direct UPI payments, when a UPI ID is configured. */
+export const upiPayee = resolveUpiPayee(siteConfig.payment.upi);
+
 /** How this deployment takes payment. Fixed for the life of the process. */
 export const payment = resolvePaymentMode({
   hasDatabase: isRegistrationBackendConfigured,
   keyId: env.RAZORPAY_KEY_ID,
   keySecret: env.RAZORPAY_KEY_SECRET,
+  hasUpiPayee: upiPayee !== null,
+  allowUpiPreview: process.env.NODE_ENV !== "production",
   requested: env.PAYMENT_MODE,
 });
 
@@ -61,6 +67,7 @@ export async function getRegistrationContext(): Promise<RegistrationContext> {
     gateway: getGateway(),
     paymentMode: payment.mode,
     paymentUnavailableReason: payment.reason,
+    upi: upiPayee,
     events: getEvents(),
     registrationStatus: settings.registrationStatus,
     phoneField: siteConfig.registration.phoneField,

@@ -74,7 +74,6 @@ export interface FlowConfig {
   testFees: boolean;
   emailConfigured: boolean;
   contact: { email: string | null; phone: string | null };
-  refundPolicy: string | null;
 }
 
 type FormStep = "events" | "details" | "review";
@@ -507,7 +506,6 @@ export function RegistrationFlow({
         registration={registration}
         emailConfigured={config.emailConfigured}
         contact={config.contact}
-        refundPolicy={config.refundPolicy}
         onRegisterAnother={() => startOver(false)}
       />
     );
@@ -517,6 +515,7 @@ export function RegistrationFlow({
         registration={registration}
         access={access}
         siteName={config.siteName}
+        paymentMode={config.paymentMode}
         onUpdate={setRegistration}
         onStartOver={() => startOver(true)}
       />
@@ -1016,7 +1015,9 @@ export function RegistrationFlow({
             ? "// nothing is payable online for this registration"
             : config.paymentMode === "mock"
               ? "// mock gateway: a simulated payment, no money moves"
-              : "// paid securely through Razorpay on the next step"}
+              : config.paymentMode === "upi"
+                ? "// paid by UPI on the next step, then checked by a coordinator"
+                : "// paid securely through Razorpay on the next step"}
         </p>
 
         <div className="mt-6 space-y-3 empty:hidden">

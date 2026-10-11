@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { ProsePage } from "@/components/layout/prose-page";
 import { Notice } from "@/components/ui/notice";
 import { getEvents } from "@/config/events";
+import { siteConfig } from "@/config/site";
 
 export const metadata: Metadata = {
   title: "Event rules",
@@ -22,10 +23,21 @@ export default function RulesPage() {
         description="The rules you agree to when you register."
       />
       <ProsePage>
-        <Notice tone="warn" title="Awaiting confirmation">
-          The general rules and code of conduct have not been published yet.
-          They will appear here before registration opens.
-        </Notice>
+        {siteConfig.rules ? (
+          <section>
+            <h2>Rules and regulations</h2>
+            <ol>
+              {siteConfig.rules.map((rule) => (
+                <li key={rule}>{rule}</li>
+              ))}
+            </ol>
+          </section>
+        ) : (
+          <Notice tone="warn" title="Awaiting confirmation">
+            The general rules and code of conduct have not been published yet.
+            They will appear here before registration opens.
+          </Notice>
+        )}
 
         <section>
           <h2>Rules for each competition</h2>

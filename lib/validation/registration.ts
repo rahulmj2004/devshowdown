@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { UPI_TRANSACTION_ID_PATTERN } from "@/lib/payments/upi";
 import type { PhoneFieldMode, TeamRule } from "@/types";
 
 export interface RegistrationSchemaEvent {
@@ -235,4 +236,12 @@ export const checkoutPayloadSchema = z.object({
   razorpay_payment_id: z.string().min(1).max(120),
   razorpay_order_id: z.string().min(1).max(120),
   razorpay_signature: z.string().regex(/^[a-f0-9]{64}$/),
+});
+
+/** What a participant sends after paying by UPI: the receipt's reference. */
+export const upiPaymentSchema = z.object({
+  transactionId: z
+    .string()
+    .trim()
+    .regex(UPI_TRANSACTION_ID_PATTERN, "Enter the 12-digit UPI transaction ID"),
 });

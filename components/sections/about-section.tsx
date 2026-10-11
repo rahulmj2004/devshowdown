@@ -1,3 +1,4 @@
+import { ArrowUpRight, MapPin } from "lucide-react";
 import { Tba } from "@/components/ui/badge";
 import { Reveal } from "@/components/ui/reveal";
 import { SectionHeading } from "@/components/ui/section-heading";
@@ -35,9 +36,18 @@ export function AboutSection({ events }: { events: readonly EventConfig[] }) {
                 <p key={paragraph}>{paragraph}</p>
               ))}
             </Reveal>
+          </div>
 
-            <Reveal delay={0.08}>
-              <dl className="mt-10 divide-y divide-line border-y border-line">
+          <div className="lg:pt-10">
+            <Reveal delay={0.1}>
+              <HeroTerminal
+                events={events}
+                prizeLabel={formatRupees(prize.total)}
+                prizeApproximate={prize.approximate}
+              />
+            </Reveal>
+            <Reveal delay={0.16}>
+              <dl className="mt-8 divide-y divide-line border-y border-line">
                 {facts.map((fact) => (
                   <div
                     key={fact.label}
@@ -52,15 +62,57 @@ export function AboutSection({ events }: { events: readonly EventConfig[] }) {
               </dl>
             </Reveal>
           </div>
-
-          <Reveal delay={0.1} className="lg:pt-10">
-            <HeroTerminal
-              events={events}
-              prizeLabel={formatRupees(prize.total)}
-              prizeApproximate={prize.approximate}
-            />
-          </Reveal>
         </div>
+
+        {details.venue && (
+          <Reveal className="mt-20">
+            <div
+              id="venue"
+              className="grid scroll-mt-24 border border-line bg-surface lg:grid-cols-[0.8fr_1.2fr]"
+            >
+              <div className="flex flex-col p-6 sm:p-8">
+                <p className="flex items-center gap-2 eyebrow text-lime">
+                  <MapPin aria-hidden="true" className="size-3.5" />
+                  Venue
+                </p>
+                <h3 className="mt-4 display text-3xl text-fg sm:text-4xl">
+                  {details.venue}
+                </h3>
+                {details.venueAddress && (
+                  <address className="mt-4 max-w-xs text-sm leading-relaxed text-muted not-italic">
+                    {details.venueAddress}
+                  </address>
+                )}
+                {details.venueMapUrl && (
+                  <a
+                    href={details.venueMapUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group mt-8 inline-flex items-center gap-2 self-start rounded-[3px] border border-line-strong px-3.5 py-2 text-sm text-muted transition-colors duration-200 hover:border-lime hover:text-lime lg:mt-auto"
+                  >
+                    Get directions
+                    <ArrowUpRight
+                      aria-hidden="true"
+                      className="size-3.5 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                    />
+                    <span className="sr-only"> (opens in a new tab)</span>
+                  </a>
+                )}
+              </div>
+              {details.venueMapEmbedUrl && (
+                <iframe
+                  src={details.venueMapEmbedUrl}
+                  title={`Map showing ${details.venue}`}
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  // Google's embed has no dark theme, so the tiles are inverted to
+                  // sit in the page. Hovering restores the original colours.
+                  className="h-72 w-full border-t border-line [filter:invert(0.92)_hue-rotate(180deg)_saturate(0.7)_brightness(0.95)_contrast(0.9)] transition-[filter] duration-500 hover:[filter:none] lg:h-full lg:min-h-96 lg:border-t-0 lg:border-l"
+                />
+              )}
+            </div>
+          </Reveal>
+        )}
 
         {/* What the competitions are built to test. */}
         <ul className="mt-20 grid border-t border-line-strong sm:grid-cols-2 lg:grid-cols-5">

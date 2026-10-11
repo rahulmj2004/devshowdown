@@ -90,6 +90,15 @@ export interface FaqItem {
   awaitingConfirmation?: boolean;
 }
 
+export interface Coordinator {
+  name: string;
+  role: string;
+  /** Display format, e.g. "+91 98765 43210". */
+  phone: string;
+  /** Path under `public/`, a 4:5 portrait. */
+  photo: string;
+}
+
 export interface SocialLink {
   label: string;
   href: string;
@@ -159,7 +168,7 @@ export type PaymentState =
   "not_required" | "pending" | "paid" | "failed" | "verification_required";
 
 /** How payments are handled by this deployment. Derived on the server. */
-export type PaymentMode = "razorpay" | "mock" | "unconfigured";
+export type PaymentMode = "razorpay" | "upi" | "mock" | "unconfigured";
 
 /** Private participant record. Only ever read on the server by organizers. */
 export interface RegistrationRecord {
@@ -177,6 +186,10 @@ export interface RegistrationRecord {
   /** Team members other than the registrant. */
   teamMembers: string[];
   phone: string | null;
+  /** Total payable for the whole registration, in paise. */
+  amountPaise: number;
+  /** UPI transaction ID the participant entered, if they paid by UPI. */
+  upiTransactionId: string | null;
   createdAt: string;
 }
 

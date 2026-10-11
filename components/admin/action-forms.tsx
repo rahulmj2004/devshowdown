@@ -4,6 +4,7 @@ import { LoaderCircle } from "lucide-react";
 import { useActionState } from "react";
 import {
   createResultAction,
+  reviewUpiPaymentAction,
   signInAction,
   updateSettingsAction,
   type ActionState,
@@ -224,6 +225,56 @@ export function ResultForm({
           <Feedback state={state} />
         </div>
       </fieldset>
+    </form>
+  );
+}
+
+/** Approve / reject buttons for one UPI payment a participant reported. */
+export function UpiReviewForm({
+  reference,
+  name,
+}: {
+  reference: string;
+  name: string;
+}) {
+  const [state, action, pending] = useActionState(reviewUpiPaymentAction, null);
+  return (
+    <form action={action} className="flex flex-col items-end gap-2">
+      <input type="hidden" name="reference" value={reference} />
+      <div className="flex gap-2">
+        <Button
+          type="submit"
+          name="decision"
+          value="approve"
+          size="sm"
+          disabled={pending}
+        >
+          {pending && (
+            <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
+          )}
+          Mark paid
+          <span className="sr-only"> for {name}</span>
+        </Button>
+        <Button
+          type="submit"
+          name="decision"
+          value="reject"
+          variant="secondary"
+          size="sm"
+          disabled={pending}
+        >
+          Reject
+          <span className="sr-only"> payment for {name}</span>
+        </Button>
+      </div>
+      {state && !state.ok && (
+        <p
+          aria-live="polite"
+          className="max-w-xs text-right text-xs text-danger"
+        >
+          {state.message}
+        </p>
+      )}
     </form>
   );
 }

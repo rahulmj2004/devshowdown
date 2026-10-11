@@ -2,6 +2,7 @@ import { ArrowUp, ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { Tba } from "@/components/ui/badge";
 import { siteConfig } from "@/config/site";
+import { telHref } from "@/lib/utils";
 
 const explore = [
   { label: "Events", href: "/events" },
@@ -9,13 +10,13 @@ const explore = [
   { label: "Leaderboard", href: "/leaderboard" },
   { label: "Schedule", href: "/#schedule" },
   { label: "FAQ", href: "/#faq" },
+  { label: "Coordinators", href: "/#coordinators" },
 ] as const;
 
 const legal = [
   { label: "Rules", href: "/rules" },
   { label: "Privacy", href: "/privacy" },
   { label: "Terms", href: "/terms" },
-  { label: "Refunds", href: "/refunds" },
 ] as const;
 
 /* Underline wipes in from the left on hover or focus. */
@@ -50,7 +51,7 @@ function Column({
 }
 
 export function Footer() {
-  const { contact, socials, details } = siteConfig;
+  const { contact, coordinators, socials, details } = siteConfig;
 
   return (
     <footer className="relative overflow-hidden border-t border-line bg-bg-soft">
@@ -88,56 +89,53 @@ export function Footer() {
                 {details.organizer ?? <Tba label="Organizer to be announced" />}
               </dd>
             </div>
-            <div>
-              <dt className="sr-only">Email</dt>
-              <dd>
-                {contact.email ? (
+            {/* Email and social links appear only once they are configured. */}
+            {contact.email && (
+              <div>
+                <dt className="sr-only">Email</dt>
+                <dd>
                   <a href={`mailto:${contact.email}`} className={linkClass}>
                     {contact.email}
                   </a>
-                ) : (
-                  <Tba label="Email to be announced" />
-                )}
-              </dd>
-            </div>
-            <div>
-              <dt className="sr-only">Phone</dt>
-              <dd>
-                {contact.phone ? (
-                  <a href={`tel:${contact.phone}`} className={linkClass}>
-                    {contact.phone}
-                  </a>
-                ) : (
-                  <Tba label="Phone to be announced" />
-                )}
-              </dd>
-            </div>
+                </dd>
+              </div>
+            )}
           </dl>
 
-          <h2 className="mt-8 eyebrow text-subtle">Follow</h2>
-          {socials.length > 0 ? (
-            <ul className="mt-4 flex flex-wrap gap-2">
-              {socials.map((social) => (
-                <li key={social.href}>
-                  <a
-                    href={social.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="group inline-flex items-center gap-1.5 rounded-[3px] border border-line-strong px-3 py-1.5 text-sm text-muted transition-[color,border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-lime hover:text-lime"
-                  >
-                    {social.label}
-                    <ArrowUpRight
-                      aria-hidden="true"
-                      className="size-3.5 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
-                    />
-                  </a>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="mt-4">
-              <Tba label="Social links to be announced" />
-            </p>
+          <h2 className="mt-8 eyebrow text-subtle">Coordinators</h2>
+          <ul className="mt-5 space-y-3 text-sm">
+            {coordinators.map((coordinator) => (
+              <li key={coordinator.name}>
+                <p className="text-fg">{coordinator.name}</p>
+                <a href={telHref(coordinator.phone)} className={linkClass}>
+                  {coordinator.phone}
+                </a>
+              </li>
+            ))}
+          </ul>
+
+          {socials.length > 0 && (
+            <>
+              <h2 className="mt-8 eyebrow text-subtle">Follow</h2>
+              <ul className="mt-4 flex flex-wrap gap-2">
+                {socials.map((social) => (
+                  <li key={social.href}>
+                    <a
+                      href={social.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group inline-flex items-center gap-1.5 rounded-[3px] border border-line-strong px-3 py-1.5 text-sm text-muted transition-[color,border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-lime hover:text-lime"
+                    >
+                      {social.label}
+                      <ArrowUpRight
+                        aria-hidden="true"
+                        className="size-3.5 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                      />
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </>
           )}
         </div>
       </div>

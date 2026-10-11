@@ -1,4 +1,5 @@
 import type {
+  Coordinator,
   FaqItem,
   PhoneFieldMode,
   PrizeTier,
@@ -24,12 +25,25 @@ export const siteConfig = {
   description:
     "DevShowdown is a developer competition where you compete through speed, logic, coding, and problem-solving.",
   heroCopy:
-    "Five competitions, one arena. Debug, type, hunt and code your way up the board.",
+    "Five rounds, one arena. Debug, type, hunt and code your way up the board.",
 
   about: [
     "DevShowdown brings developers together for a set of focused competitions: typing against the clock, hunting down bugs, coding without seeing the screen, solving programming problems, and cracking a trail of technical clues.",
-    "Pick the challenge that suits you, or the one that scares you a little. The full schedule will be announced by the organizers.",
+    "Teams of three register once. Each member takes one morning sub-event, and the top teams go on to the Treasure Hunt and the Coding round.",
   ],
+
+  /**
+   * General rules, shown on the Rules page. `null` until they are published.
+   */
+  rules: [
+    "Each team must have exactly 3 members.",
+    "There are 3 sub-events in the morning: Debugging, Speed Typing and Blind Coding.",
+    "Each team member must take part in one sub-event.",
+    "The registration fee is ₹150 per team.",
+    "Every participant must bring their college ID card.",
+    "The 5 teams with the highest combined individual points advance to the next phase: the Treasure Hunt and the Coding round.",
+    "The top 2 teams in the afternoon Treasure Hunt are awarded the prize money.",
+  ] as string[] | null,
 
   /** What the competitions are built to test. Shown in the About section. */
   skills: [
@@ -55,18 +69,30 @@ export const siteConfig = {
     },
   ],
 
-  /** Core event facts. All unconfirmed. */
+  /** Core event facts. Anything still `null` is unconfirmed. */
   details: {
     /** Display text, e.g. "14–15 March 2027". */
-    dates: null as string | null,
-    venue: null as string | null,
-    registrationDeadline: null as string | null,
-    organizer: null as string | null,
+    dates: "15 October 2026" as string | null,
+    venue: "Vidya Academy of Science and Technology, Thrissur" as string | null,
+    venueAddress:
+      "P.O. Thalakottukara, Kaipparambu, Thrissur, Kerala 680601" as
+        string | null,
+    /** Opens directions to the venue in Google Maps. */
+    venueMapUrl:
+      "https://www.google.com/maps?client=safari&rls=en&oe=UTF-8&um=1&ie=UTF-8&fb=1&gl=in&sa=X&geocode=KQdGWA5N6qc7MS4krx3-52Qm&daddr=P.O.+Thalakottukara,,+Kaipparambu,+Thrissur,+Keralam+680601" as
+        string | null,
+    /** Keyless Google Maps embed shown in the About section. */
+    venueMapEmbedUrl:
+      "https://www.google.com/maps?q=Vidya+Academy+of+Science+and+Technology,+Thalakottukara,+Thrissur,+Kerala+680601&z=15&output=embed" as
+        string | null,
+    registrationDeadline: "14 October 2026" as string | null,
+    organizer: "Department of Computer Science and Engineering" as
+      string | null,
     /**
      * Start of the event as an ISO 8601 instant with an offset, e.g.
      * "2027-03-14T09:30:00+05:30". Powers the hero countdown.
      */
-    startsAt: null as string | null,
+    startsAt: "2026-10-15T00:00:00+05:30" as string | null,
     /** IANA timezone that every displayed time is in. */
     timezone: "Asia/Kolkata",
     timezoneLabel: "IST",
@@ -87,10 +113,32 @@ export const siteConfig = {
      * The first three tiers are drawn as the podium.
      */
     distribution: null as PrizeTier[] | null,
+    /** The road to the prize, drawn while `distribution` is not set. */
+    stages: [
+      {
+        when: "Morning",
+        who: "All teams",
+        text: "Debugging, Speed Typing and Blind Coding. One member per sub-event.",
+      },
+      {
+        when: "Afternoon",
+        who: "Top 5 teams",
+        text: "The highest combined points advance to the Treasure Hunt and the Coding round.",
+      },
+      {
+        when: "Finish",
+        who: "Top 2 teams",
+        text: "Win the prize money. Winners receive certificates.",
+      },
+    ],
     distributionNote:
-      "How the prize pool is split across competitions and places will be announced by the organizers.",
+      "The prize money goes to the top 2 teams in the afternoon Treasure Hunt. The amount for each place will be announced by the organizers.",
     /** Prize eligibility rules, once the organizers publish them. */
-    eligibility: null as string[] | null,
+    eligibility: [
+      "The 5 teams with the highest combined individual points from the morning sub-events advance to the afternoon rounds.",
+      "The top 2 teams in the Treasure Hunt are awarded the prize money.",
+      "Winners receive certificates.",
+    ] as string[] | null,
   },
 
   /**
@@ -100,9 +148,39 @@ export const siteConfig = {
    *       { time: "09:00 AM", title: "Check-in", kind: "registration" },
    *   ] }
    */
-  schedule: [] as ScheduleDay[],
+  schedule: [
+    {
+      label: "Morning session",
+      items: [
+        { time: "Sub-event", title: "Debugging", kind: "round" },
+        { time: "Sub-event", title: "Speed Typing", kind: "round" },
+        {
+          time: "Sub-event",
+          title: "Blind Coding",
+          kind: "round",
+          description:
+            "Each team member takes part in one of the three morning sub-events. The 5 teams with the highest combined points advance.",
+        },
+      ],
+    },
+    {
+      label: "Afternoon session",
+      items: [
+        {
+          time: "Top 5 teams",
+          title: "Treasure Hunt",
+          kind: "round",
+          description: "The top 2 teams here are awarded the prize money.",
+        },
+        { time: "Afternoon round", title: "Coding round", kind: "round" },
+      ],
+    },
+  ] as ScheduleDay[],
 
-  /** Sponsor wall. Add tiers once partners are confirmed; never add fakes. */
+  /**
+   * Sponsor wall. There are no sponsors, so `SponsorsSection` is not on the
+   * home page; add tiers here and put it back in `app/page.tsx` if that changes.
+   */
   sponsors: [] as SponsorTier[],
 
   /**
@@ -110,12 +188,25 @@ export const siteConfig = {
    * With Supabase configured, organizers change these from the admin dashboard.
    */
   defaults: {
-    registrationStatus: "not_open" as RegistrationStatus,
+    registrationStatus: "open" as RegistrationStatus,
     announcementLabel: "Announced",
-    announcementText: "Dates, venue and registration details coming soon",
+    announcementText:
+      "15 October 2026 · Vidya Academy of Science and Technology, Thrissur",
   },
 
   registration: {
+    /** Members in every team, including the person who registers. */
+    teamSize: 3 as number | null,
+    /** Entry fee per team in whole rupees, covering the whole event. */
+    teamFee: 150 as number | null,
+    /**
+     * External form (Google Form) that takes registrations and payment. While
+     * this is set, the Register page links to it instead of showing the
+     * built-in registration form. Set to `null` to use the built-in form.
+     */
+    formUrl:
+      "https://docs.google.com/forms/d/e/1FAIpQLSeaYDkltDLEUTFFrbZAJkb9tFHooOa97dNe-7sYfpe6uuHcPg/viewform" as
+        string | null,
     /** "hidden" | "optional" | "required" */
     phoneField: "optional" as PhoneFieldMode,
     /**
@@ -131,14 +222,48 @@ export const siteConfig = {
    */
   payment: {
     currency: "INR",
-    /** Shown on the confirmation screen once a refund policy is published. */
-    refundPolicy: null as string | null,
+    /**
+     * Direct UPI payment. Set BOTH to switch it on: participants then pay this
+     * UPI ID from a QR code, enter their transaction ID, and an organizer
+     * approves it from the dashboard. Razorpay keys, if set, take priority.
+     *   vpa: "yourname@okhdfcbank", payeeName: "Rahul M J"
+     */
+    upi: {
+      vpa: null as string | null,
+      payeeName: null as string | null,
+    },
   },
 
   contact: {
     email: null as string | null,
-    phone: null as string | null,
+    /** Single number shown on the registration confirmation screen. */
+    phone: "+91 81568 97436" as string | null,
   },
+
+  /**
+   * Event coordinators, in display order. Photos live in
+   * `public/coordinators/` as 4:5 portraits.
+   */
+  coordinators: [
+    {
+      name: "Rahul M J",
+      role: "Coordinator",
+      phone: "+91 81568 97436",
+      photo: "/coordinators/rahul-m-j.jpg",
+    },
+    {
+      name: "Advaith U",
+      role: "Coordinator",
+      phone: "+91 92073 30859",
+      photo: "/coordinators/advaith-u.jpg",
+    },
+    {
+      name: "Devinandha VR",
+      role: "Coordinator",
+      phone: "+91 80894 05787",
+      photo: "/coordinators/devinandha-vr.jpg",
+    },
+  ] as Coordinator[],
 
   /** Add `{ label, href }` entries once official accounts exist. */
   socials: [] as SocialLink[],
@@ -162,65 +287,52 @@ export const faqs: FaqItem[] = [
   {
     question: "Which competitions can I take part in?",
     answer:
-      "Five competitions have been announced: Debugging, Blind Coding, Treasure Hunt, Speed Typing, and Coding.",
+      "Three sub-events in the morning (Debugging, Speed Typing and Blind Coding), followed by the Treasure Hunt and the Coding round. Your team registers once for the whole event.",
   },
   {
     question: "When and where does it take place?",
     answer:
-      "The dates and venue have not been announced yet. This page will be updated as soon as the organizers confirm them.",
-    awaitingConfirmation: true,
+      "DevShowdown takes place on 15 October 2026 at Vidya Academy of Science and Technology, P.O. Thalakottukara, Kaipparambu, Thrissur, Kerala 680601. A map and directions are in the About section.",
   },
   {
     question: "Who can participate?",
     answer:
-      "Eligibility requirements have not been published yet. Check each event page for updates.",
+      "Teams of 3 members. Every participant must bring their college ID card on the day. Any further eligibility requirements have not been published yet.",
     awaitingConfirmation: true,
   },
   {
     question: "How do I register?",
     answer:
-      "Registration happens on this site: choose your competitions, enter your details, review, and confirm. The registration page always shows the current status, and accepts entries once the organizers open it.",
+      "Open the Register page and follow the link to the registration form. Fill in your details, complete the payment as the form explains, and submit it.",
   },
   {
     question: "Can I enter more than one competition?",
     answer:
-      "The policy on entering multiple competitions has not been confirmed yet. The registration page shows what is currently allowed.",
-    awaitingConfirmation: true,
+      "There is only one registration, for your team. In the morning there are 3 sub-events (Debugging, Speed Typing and Blind Coding) and each team member takes part in one of them. The top 5 teams then go on to the Treasure Hunt and the Coding round.",
   },
   {
     question: "Do I register alone or as a team?",
-    answer:
-      "Team sizes have not been confirmed yet. Each event page will show whether it is a solo or team event.",
-    awaitingConfirmation: true,
+    answer: "As a team. Each team must have exactly 3 members.",
   },
   {
     question: "Is there a registration fee, and how do I pay?",
     answer:
-      "Fee details have not been confirmed yet. If a fee applies, it is shown on the event page and in the review step before you pay, and payment is taken through a secure checkout. This site never sees or stores your card details.",
-    awaitingConfirmation: true,
-  },
-  {
-    question: "What is the refund policy?",
-    answer: "A refund policy has not been published yet.",
-    awaitingConfirmation: true,
+      "The entry fee is ₹150 per team. How to pay it is explained in the registration form, which you reach from the Register page. This site never sees or stores your card details or UPI PIN.",
   },
   {
     question: "Will I get a certificate?",
-    answer:
-      "Whether certificates are issued has not been confirmed by the organizers yet.",
-    awaitingConfirmation: true,
+    answer: "Yes, the winners receive certificates.",
   },
   {
     question: "How will the prize pool be distributed?",
     answer:
-      "The total prize pool is approximately ₹15,000. How it is split across competitions and places will be announced later.",
+      "The total prize pool is approximately ₹15,000. It is awarded to the top 2 teams in the afternoon Treasure Hunt. The amount for each place will be announced later.",
     awaitingConfirmation: true,
   },
   {
     question: "Who do I contact with a question?",
     answer:
-      "Organizer contact details have not been published yet. They will appear in the footer of this site.",
-    awaitingConfirmation: true,
+      "Call any of the coordinators: Rahul M J (+91 81568 97436), Advaith U (+91 92073 30859) or Devinandha VR (+91 80894 05787). Their details are also in the Coordinators section and the footer.",
   },
 ];
 

@@ -5,6 +5,10 @@ export interface PaymentModeInput {
   hasDatabase: boolean;
   keyId: string | undefined;
   keySecret: string | undefined;
+  /** A UPI ID is configured in `config/site.ts`. */
+  hasUpiPayee?: boolean;
+  /** Not a production build: UPI screens may be previewed without a database. */
+  allowUpiPreview?: boolean;
   /** `PAYMENT_MODE` from the environment. */
   requested: "mock" | undefined;
 }
@@ -22,9 +26,11 @@ export interface PaymentModeResult {
  *  - Razorpay keys enable real payments, with one guard: live keys are refused
  *    unless a database is connected, because taking real money that cannot be
  *    recorded would be worse than taking none.
- *  - With no keys and no database the whole site is a demo, so the mock
- *    gateway is used; with a database but no keys, payment is unconfigured
- *    and paid registrations are refused outright.
+ *  - Without keys, a configured UPI ID enables direct UPI payment that an
+ *    organizer verifies by hand. It needs a database for the same reason.
+ *  - With nothing configured and no database the whole site is a demo, so
+ *    the mock gateway is used; with a database but no way to pay, payment is
+ *    unconfigured and paid registrations are refused outright.
  */
 export function resolvePaymentMode(input: PaymentModeInput): PaymentModeResult {
   if (input.requested === "mock") return { mode: "mock", reason: null };
@@ -38,6 +44,17 @@ export function resolvePaymentMode(input: PaymentModeInput): PaymentModeResult {
       };
     }
     return { mode: "razorpay", reason: null };
+  }
+
+  if (input.hasUpiPayee) {
+    if (!input.hasDatabase && !input.allowUpiPreview) {
+      return {
+        mode: "unconfigured",
+        reason:
+          "A UPI ID is set but no database is connected, so payments could not be recorded.",
+      };
+    }
+    return { mode: "upi", reason: null };
   }
 
   if (!input.hasDatabase) return { mode: "mock", reason: null };

@@ -111,7 +111,7 @@ function DebugVisual() {
           </Line>
           <Line
             n={14}
-            className="bg-rose/10 transition-colors duration-300 group-focus-within:bg-lime/10 group-hover:bg-lime/10"
+            className="relative bg-rose/10 transition-colors duration-300 group-focus-within:bg-lime/10 group-hover:bg-lime/10 before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-rose before:transition-colors before:duration-300 group-focus-within:before:bg-lime group-hover:before:bg-lime"
           >
             {"  "}
             <K>for</K> (<K>let</K> i = <N>0</N>; i{" "}
@@ -139,23 +139,40 @@ function DebugVisual() {
           </p>
         </div>
       </div>
-      {/* Corrupted memory strip. */}
-      <p className="mt-3 truncate font-mono text-[10px] tracking-[0.2em] text-rose/50">
-        0x7F 3A ██ 00 E4 ▓▓ 1C 9B ░░ FF 02 ██ A0 5D ▓▓ 44 0B ░░ C3 ██ 6E 91
-      </p>
+      {/* Test run: the failing case goes green with the fix. */}
+      <div className="mt-3 flex items-center gap-4 font-mono text-[10px] whitespace-nowrap">
+        <span className="tracking-[0.2em] text-subtle uppercase">Tests</span>
+        <span className="relative">
+          <span className="text-rose transition-opacity duration-200 group-focus-within:opacity-0 group-hover:opacity-0">
+            ✕ total()
+          </span>
+          <span className="absolute inset-0 text-lime opacity-0 transition-opacity duration-200 group-focus-within:opacity-100 group-hover:opacity-100">
+            ✓ total()
+          </span>
+        </span>
+        <span className="text-lime/80">✓ add()</span>
+        <span className="hidden text-lime/80 sm:inline">✓ remove()</span>
+        {/* Progress: two of three, then all three. */}
+        <span className="ml-auto flex gap-1">
+          <span className="h-1 w-5 bg-lime/80" />
+          <span className="h-1 w-5 bg-lime/80" />
+          <span className="h-1 w-5 bg-rose transition-colors duration-300 group-focus-within:bg-lime/80 group-hover:bg-lime/80" />
+        </span>
+      </div>
     </div>
   );
 }
 
 /* --------------------------------------------------------- blind coding */
 const redactions = [58, 82, 44, 70, 52];
+const blindKeys = ["", "", "", "", "", "space", "", "", "", "", ""];
 
 function BlindVisual() {
   return (
     <div className="absolute inset-0 flex items-center justify-center p-5 sm:p-7">
       <div className="relative w-full max-w-md">
         {/* A monitor with nothing to read on it. */}
-        <div className="relative overflow-hidden border border-line-strong bg-black">
+        <div className="relative overflow-hidden border border-line-strong bg-black shadow-[0_0_60px_-24px_var(--accent)]">
           <div className="absolute inset-0 bg-scanlines opacity-60" />
           <div className="relative space-y-2.5 px-5 py-4">
             {redactions.map((width, index) => (
@@ -164,7 +181,7 @@ function BlindVisual() {
                   {index + 1}
                 </span>
                 <span
-                  className="redact block h-2.5 bg-white/[0.13] transition-colors duration-300 group-hover:bg-white/[0.2]"
+                  className="redact block h-2.5 bg-linear-to-r from-(--accent)/35 to-white/[0.08] transition-opacity duration-300 group-hover:opacity-80"
                   style={{
                     ...vars({ "--i": index }),
                     width: `${width}%`,
@@ -194,8 +211,19 @@ function BlindVisual() {
         <p className="absolute top-1/2 left-1/2 -translate-1/2 scale-110 -rotate-6 border-2 border-(--accent) bg-black/85 px-4 py-1.5 display text-2xl whitespace-nowrap text-(--accent) opacity-0 transition-[opacity,transform] duration-300 ease-out group-focus-within:scale-100 group-focus-within:opacity-100 group-hover:scale-100 group-hover:opacity-100 sm:text-3xl">
           No peeking
         </p>
-        <div className="mx-auto h-3 w-16 border-x border-line-strong" />
-        <div className="mx-auto h-px w-28 bg-line-strong" />
+        {/* The only thing left to trust: the keys. */}
+        <div className="mt-3 flex justify-center gap-1">
+          {blindKeys.map((key, index) => (
+            <span
+              key={index}
+              className={cn(
+                "h-4 animate-key rounded-[2px] border border-line-strong bg-surface-2",
+                key === "space" ? "w-14" : "w-4",
+              )}
+              style={{ animationDelay: `${((index * 7) % 10) * 0.32}s` }}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -262,7 +290,29 @@ function HuntVisual() {
         strokeLinecap="round"
         strokeDasharray="4 7"
         className="animate-dash"
+        style={{ filter: "drop-shadow(0 0 3px var(--accent))" }}
       />
+
+      {/* Compass. */}
+      <g transform="translate(52 78)">
+        <circle r="15" fill="#0a0a0d" fillOpacity="0.7" stroke="#ffffff26" />
+        <g stroke="#ffffff33">
+          <path d="M0-15v4M0 11v4M-15 0h4M11 0h4" />
+        </g>
+        <g transform="rotate(28)">
+          <path d="M0-10 3 0h-6z" fill="var(--accent)" />
+          <path d="M0 10 3 0h-6z" fill="#ffffff33" />
+        </g>
+        <text
+          y="-19"
+          textAnchor="middle"
+          fill="#a6a6b0"
+          fontSize="6.5"
+          fontFamily="var(--font-mono)"
+        >
+          N
+        </text>
+      </g>
       {clues.map((clue) => (
         <g key={clue.label} transform={`translate(${clue.x} ${clue.y})`}>
           <circle r="9" fill="#0a0a0d" stroke="var(--accent)" />
@@ -447,7 +497,10 @@ function CodeVisual() {
           <span className="border-r border-line px-3 py-2 text-subtle">
             tests.py
           </span>
-          <span className="ml-auto px-3 py-2 text-subtle">O(n)</span>
+          <span className="ml-auto flex items-center gap-1.5 px-3 py-2 text-(--accent)">
+            <span className="size-0 border-y-[3px] border-l-[5px] border-y-transparent border-l-(--accent)" />
+            run · O(n)
+          </span>
         </div>
         <div className="flex min-h-0 flex-1">
           <div className="min-w-0 flex-1 py-3 font-mono text-[11px] leading-[1.75] text-muted">
@@ -480,7 +533,8 @@ function CodeVisual() {
         <div className="flex items-center gap-4 border-t border-line bg-(--accent)/10 px-3 py-1.5 font-mono text-[10px] text-subtle">
           <span className="text-(--accent)">main</span>
           <span>Ln 7, Col 16</span>
-          <span className="ml-auto">UTF-8</span>
+          <span className="text-lime">✓ 12/12 tests</span>
+          <span className="ml-auto hidden sm:inline">0.04s</span>
           <span>Python</span>
         </div>
       </div>
