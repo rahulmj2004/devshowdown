@@ -1,26 +1,705 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
+/* ------------------------------------------------------------------ tokens */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", monospace;
+  --font-display:
+    var(--font-anton), "Impact", "Haettenschweiler", "Arial Narrow Bold",
+    sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@theme {
+  /* Surfaces: near-black into charcoal, each step slightly lighter. */
+  --color-bg: #060608;
+  --color-bg-soft: #0a0a0d;
+  --color-surface: #101014;
+  --color-surface-2: #18181e;
+
+  /* Hairlines. */
+  --color-line: #ffffff14;
+  --color-line-strong: #ffffff2e;
+
+  /* Text. */
+  --color-fg: #f3f3ee;
+  --color-muted: #a6a6b0;
+  --color-subtle: #82828e;
+
+  /* Accents: electric violet (primary), acid lime (action), icy cyan. */
+  --color-violet: #7b3dff;
+  --color-violet-bright: #a98bff;
+  --color-lime: #c8ff2e;
+  --color-cyan: #7fe9ff;
+  --color-rose: #ff4d6a;
+
+  /* States. */
+  --color-success: #4ade80;
+  --color-warn: #fbbf24;
+  --color-danger: #ff6b81;
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out-quart: cubic-bezier(0.76, 0, 0.24, 1);
+
+  --animate-caret: caret 1.1s steps(1) infinite;
+  --animate-page-in: page-in 0.5s var(--ease-out-expo) both;
+  --animate-grid-pan: grid-pan 28s linear infinite;
+  --animate-float: float 9s ease-in-out infinite;
+  --animate-key: key-press 3.2s ease-in-out infinite;
+  --animate-ping-soft: ping-soft 2.4s ease-out infinite;
+  --animate-dash: dash 14s linear infinite;
+  --animate-spin-slow: spin 40s linear infinite;
+  --animate-spin-slower: spin 90s linear infinite;
+  --animate-marquee: marquee 38s linear infinite;
+  --animate-scroll-cue: scroll-cue 2.2s var(--ease-in-out-quart) infinite;
+  --animate-shimmer: shimmer 1.6s linear infinite;
+
+  @keyframes caret {
+    0%,
+    55% {
+      opacity: 1;
+    }
+    56%,
+    100% {
+      opacity: 0;
+    }
+  }
+  @keyframes page-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+  }
+  @keyframes grid-pan {
+    to {
+      background-position:
+        64px 64px,
+        64px 64px;
+    }
+  }
+  @keyframes float {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-8px);
+    }
+  }
+  @keyframes key-press {
+    0%,
+    12%,
+    100% {
+      transform: translateY(0);
+      background-color: var(--color-surface-2);
+      border-color: var(--color-line-strong);
+      color: var(--color-subtle);
+    }
+    4%,
+    8% {
+      transform: translateY(2px);
+      background-color: color-mix(in oklab, var(--color-cyan) 22%, transparent);
+      border-color: var(--color-cyan);
+      color: var(--color-fg);
+    }
+  }
+  @keyframes ping-soft {
+    0% {
+      transform: scale(1);
+      opacity: 0.7;
+    }
+    80%,
+    100% {
+      transform: scale(2.6);
+      opacity: 0;
+    }
+  }
+  @keyframes dash {
+    to {
+      stroke-dashoffset: -200;
+    }
+  }
+  @keyframes marquee {
+    to {
+      transform: translateX(-50%);
+    }
+  }
+  @keyframes scroll-cue {
+    0% {
+      transform: translateY(-100%);
+    }
+    55%,
+    100% {
+      transform: translateY(100%);
+    }
+  }
+  @keyframes shimmer {
+    to {
+      background-position: -200% 0;
+    }
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* -------------------------------------------------------------------- base */
+@layer base {
+  :root {
+    /* Hero entrance waits this long when the intro plays (see .intro). */
+    --intro: 0s;
+  }
+  /*
+   * "done" keeps the same delay as "play". The hero's animation delays read
+   * this variable, and changing it under a finished animation makes the
+   * browser replay that animation, so it is held steady once the intro ends.
+   */
+  html[data-intro="play"],
+  html[data-intro="done"] {
+    --intro: 1.15s;
+  }
+
+  html {
+    color-scheme: dark;
+    scroll-behavior: smooth;
+    /* Keep anchored sections clear of the fixed header. */
+    scroll-padding-top: 5rem;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-bg);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+    /* Decorative layers may extend past the viewport; never let them scroll. */
+    overflow-x: clip;
+  }
+
+  ::selection {
+    background-color: var(--color-lime);
+    color: #060608;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-lime);
+    outline-offset: 3px;
+    border-radius: 3px;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+}
+
+/* -------------------------------------------------------------- utilities */
+@utility container-page {
+  width: 100%;
+  max-width: 84rem;
+  margin-inline: auto;
+  padding-inline: 1.25rem;
+  @media (width >= 40rem) {
+    padding-inline: 2rem;
+  }
+  @media (width >= 80rem) {
+    padding-inline: 3rem;
+  }
+}
+
+/* Small uppercase mono label used above headings and inside cards. */
+@utility eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  line-height: 1rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+/* Condensed display face: always uppercase, tight. */
+@utility display {
+  font-family: var(--font-display);
+  font-weight: 400;
+  text-transform: uppercase;
+  line-height: 0.92;
+  letter-spacing: 0.005em;
+}
+
+/* Hollow display type. Falls back to solid where text-stroke is missing. */
+@utility text-outline {
+  @supports (-webkit-text-stroke: 1px #000) {
+    color: transparent;
+    -webkit-text-stroke: 1.5px var(--outline-color, var(--color-fg));
+  }
+}
+
+/* Standard raised surface. */
+@utility card {
+  border: 1px solid var(--color-line);
+  border-radius: 0.5rem;
+  background:
+    linear-gradient(180deg, #ffffff06, transparent 40%), var(--color-surface);
+}
+
+/* Faint engineering grid, faded out toward the edges. */
+@utility bg-grid {
+  background-image:
+    linear-gradient(to right, #ffffff0d 1px, transparent 1px),
+    linear-gradient(to bottom, #ffffff0d 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(
+    ellipse 75% 65% at 50% 30%,
+    #000 20%,
+    transparent 78%
+  );
+}
+
+/* The same grid without the fade, for bounded panels. */
+@utility bg-grid-flat {
+  background-image:
+    linear-gradient(to right, #ffffff0a 1px, transparent 1px),
+    linear-gradient(to bottom, #ffffff0a 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+@utility bg-scanlines {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0 2px,
+    #00000038 2px 3px
+  );
+}
+
+@utility text-gradient {
+  background-image: linear-gradient(
+    100deg,
+    var(--color-violet-bright) 5%,
+    var(--color-cyan) 95%
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+/* Cool metallic sheen for the prize figure. */
+@utility text-metal {
+  background-image: linear-gradient(
+    176deg,
+    #ffffff 16%,
+    #e9ffb0 44%,
+    #8a9a5a 60%,
+    #f1ffd0 86%
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+/* Cut top-right / bottom-left corners: the site's signature shape. */
+@utility notch {
+  clip-path: polygon(
+    0 0,
+    calc(100% - var(--notch, 10px)) 0,
+    100% var(--notch, 10px),
+    100% 100%,
+    var(--notch, 10px) 100%,
+    0 calc(100% - var(--notch, 10px))
+  );
+}
+
+/* Loading placeholder bar. */
+@utility skeleton {
+  border-radius: 0.375rem;
+  background-image: linear-gradient(
+    90deg,
+    #ffffff0a 20%,
+    #ffffff18 40%,
+    #ffffff0a 60%
+  );
+  background-size: 200% 100%;
+  animation: var(--animate-shimmer);
+}
+
+/* Terminal typing: reveals `--chars` monospace characters after `--delay`. */
+@utility type-line {
+  display: inline-block;
+  overflow: hidden;
+  white-space: nowrap;
+  vertical-align: bottom;
+  width: 0;
+  animation: type-line calc(var(--chars) * 42ms) steps(var(--chars), end)
+    calc(var(--intro) + var(--delay, 0s)) forwards;
+}
+@keyframes type-line {
+  to {
+    width: calc(var(--chars) * 1ch);
+  }
+}
+
+/* Fades an element in after `--delay`. */
+@utility appear {
+  opacity: 0;
+  animation: appear 0.35s ease-out calc(var(--intro) + var(--delay, 0s))
+    forwards;
+}
+@keyframes appear {
+  to {
+    opacity: 1;
+  }
+}
+
+/* ------------------------------------------------------------ components */
+@layer components {
+  /* Film grain over the whole page. Static, so it costs one composited layer. */
+  .grain {
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    pointer-events: none;
+    opacity: 0.07;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .9 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* ---------------------------------------------------------------- intro */
+  /*
+   * One-off opening sequence. It is CSS only, never blocks input, and exists
+   * solely when the inline script in the root layout sets data-intro="play"
+   * (first visit of the session, home page, motion allowed).
+   */
+  .intro {
+    display: none;
+  }
+  html[data-intro="play"] .intro {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: grid;
+    place-items: center;
+    pointer-events: none;
+    background: var(--color-bg);
+    animation: intro-out 0.7s var(--ease-in-out-quart) 0.9s forwards;
+  }
+  .intro-word {
+    clip-path: inset(0 100% 0 0);
+    animation: intro-wipe 0.7s var(--ease-out-expo) 0.05s forwards;
+  }
+  .intro-bar {
+    transform: scaleX(0);
+    transform-origin: left;
+    animation: intro-bar 0.8s var(--ease-in-out-quart) 0.05s forwards;
+  }
+  .intro-line {
+    opacity: 0;
+    animation: appear 0.2s ease-out var(--d, 0s) forwards;
+  }
+  @keyframes intro-wipe {
+    to {
+      clip-path: inset(0 0 0 0);
+    }
+  }
+  @keyframes intro-bar {
+    to {
+      transform: scaleX(1);
+    }
+  }
+  @keyframes intro-out {
+    to {
+      clip-path: inset(0 0 100% 0);
+      visibility: hidden;
+    }
+  }
+
+  /* ----------------------------------------------------------------- hero */
+  /* Entrance for hero blocks: `--d` is the step delay after the intro. */
+  .hero-in {
+    animation: hero-rise 0.95s var(--ease-out-expo) both;
+    animation-delay: calc(var(--intro) + var(--d, 0s));
+  }
+  @keyframes hero-rise {
+    from {
+      opacity: 0;
+      transform: translateY(22px);
+    }
+  }
+
+  /* Wordmark characters rise out of a mask, one after another. */
+  .char-mask {
+    display: inline-block;
+    overflow: hidden;
+    /* Room for the glyph tops, which sit above the tight line box. */
+    padding-top: 0.06em;
+    margin-top: -0.06em;
+    vertical-align: bottom;
+  }
+  .char {
+    display: inline-block;
+    animation: char-in 1.05s var(--ease-out-expo) both;
+    animation-delay: calc(var(--intro) + var(--i, 0) * 42ms);
+  }
+  @keyframes char-in {
+    from {
+      transform: translateY(108%) rotate(4deg);
+    }
+  }
+
+  /*
+   * Wordmark glyphs the dragon can set alight. The dragon scene writes each
+   * glyph's `--heat` (0 cold, 1 white-hot); at 0 the type is unchanged, so
+   * without the scene nothing here shows.
+   */
+  .ember {
+    --heat: 0;
+  }
+  /* Solid glyphs go molten from the foot up as they heat. */
+  .ember-fill {
+    background-image: linear-gradient(
+      to bottom,
+      var(--color-fg) 38%,
+      #fff1c2 50%,
+      #ffc14d 62%,
+      #ff7a1a 78%,
+      #ff3b0a 92%,
+      #c41a00
+    );
+    background-size: 100% 260%;
+    background-position: 0 calc(var(--heat) * 100%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  /* Hollow glyphs glow along their outline instead. */
+  .ember-stroke {
+    --outline-color: color-mix(
+      in oklab,
+      #ff8a1f calc(var(--heat) * 100%),
+      var(--color-fg)
+    );
+  }
+
+  .hero-line {
+    transform-origin: left;
+    animation: hero-line 1.2s var(--ease-in-out-quart) both;
+    animation-delay: calc(var(--intro) + var(--d, 0s));
+  }
+  @keyframes hero-line {
+    from {
+      transform: scaleX(0);
+    }
+  }
+
+  /* CSS stand-in for the 3D core (also the no-WebGL fallback). */
+  .core-ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 9999px;
+    border: 1px solid #a98bff40;
+  }
+  .core-fallback {
+    transition: opacity 0.9s ease-out;
+  }
+  .core-fallback[data-hidden="true"] {
+    opacity: 0;
+  }
+
+  /* -------------------------------------------------------- arena visuals */
+  /* Debugging: RGB-split glitch on the card title while hovered/focused. */
+  .glitch {
+    position: relative;
+  }
+  .glitch::before,
+  .glitch::after {
+    content: attr(data-text);
+    /* The empty alternative text keeps the copies out of the accessible name. */
+    content: attr(data-text) / "";
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .glitch::before {
+    color: var(--color-rose);
+  }
+  .glitch::after {
+    color: var(--color-cyan);
+  }
+  .group:hover .glitch::before,
+  .group:focus-within .glitch::before {
+    opacity: 0.85;
+    animation: glitch-a 0.9s steps(2, end) infinite;
+  }
+  .group:hover .glitch::after,
+  .group:focus-within .glitch::after {
+    opacity: 0.85;
+    animation: glitch-b 0.9s steps(2, end) infinite;
+  }
+  @keyframes glitch-a {
+    0% {
+      clip-path: inset(8% 0 62% 0);
+      transform: translate(-3px, 0);
+    }
+    25% {
+      clip-path: inset(58% 0 12% 0);
+      transform: translate(3px, 1px);
+    }
+    50% {
+      clip-path: inset(30% 0 44% 0);
+      transform: translate(-2px, -1px);
+    }
+    75% {
+      clip-path: inset(78% 0 4% 0);
+      transform: translate(2px, 0);
+    }
+    100% {
+      clip-path: inset(8% 0 62% 0);
+      transform: translate(0, 0);
+    }
+  }
+  @keyframes glitch-b {
+    0% {
+      clip-path: inset(66% 0 10% 0);
+      transform: translate(3px, 0);
+    }
+    25% {
+      clip-path: inset(12% 0 70% 0);
+      transform: translate(-3px, -1px);
+    }
+    50% {
+      clip-path: inset(48% 0 30% 0);
+      transform: translate(2px, 1px);
+    }
+    75% {
+      clip-path: inset(2% 0 84% 0);
+      transform: translate(-2px, 0);
+    }
+    100% {
+      clip-path: inset(66% 0 10% 0);
+      transform: translate(0, 0);
+    }
+  }
+
+  /* A scan bar that sweeps a panel once per loop. */
+  .scan-sweep {
+    animation: scan-sweep 4.5s var(--ease-in-out-quart) infinite;
+  }
+  @keyframes scan-sweep {
+    0% {
+      transform: translateY(-100%);
+      opacity: 0;
+    }
+    15%,
+    85% {
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(1100%);
+      opacity: 0;
+    }
+  }
+
+  /* Blind coding: redaction bars breathe. */
+  .redact {
+    animation: redact 3.4s ease-in-out infinite;
+    animation-delay: calc(var(--i, 0) * -0.37s);
+    transform-origin: left;
+  }
+  @keyframes redact {
+    0%,
+    100% {
+      transform: scaleX(1);
+    }
+    50% {
+      transform: scaleX(0.82);
+    }
+  }
+
+  /* Speed typing: a streak of kinetic text. */
+  .streak {
+    animation: streak 7s linear infinite;
+  }
+  .group:hover .streak {
+    animation-duration: 2.6s;
+  }
+  @keyframes streak {
+    to {
+      transform: translateX(-50%);
+    }
+  }
+  .needle {
+    transform-origin: 100px 100px;
+    animation: needle 3.6s var(--ease-in-out-quart) infinite alternate;
+  }
+  .group:hover .needle {
+    animation-duration: 1.1s;
+  }
+  @keyframes needle {
+    from {
+      transform: rotate(-78deg);
+    }
+    to {
+      transform: rotate(62deg);
+    }
+  }
+
+  /* Coding: lines of syntax write themselves in, staggered. */
+  .code-write {
+    clip-path: inset(0 100% 0 0);
+    animation: code-write 6s var(--ease-out-expo) infinite;
+    animation-delay: calc(var(--i, 0) * 0.28s);
+  }
+  @keyframes code-write {
+    0% {
+      clip-path: inset(0 100% 0 0);
+    }
+    18%,
+    86% {
+      clip-path: inset(0 0 0 0);
+    }
+    100% {
+      clip-path: inset(0 0 0 0);
+      opacity: 0;
+    }
+  }
+
+  /* Confirmation tick: the ring and check draw themselves. */
+  .draw {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: draw 0.7s var(--ease-out-expo) var(--d, 0s) forwards;
+  }
+  @keyframes draw {
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+}
+
+/* --------------------------------------------------------- reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    /* Jump straight to each animation's end state instead of playing it. */
+    animation-duration: 0.01ms !important;
+    animation-delay: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  /* Looping decorations whose end state is "invisible" stay put instead. */
+  .code-write,
+  .scan-sweep,
+  .streak,
+  .needle {
+    animation: none !important;
+    clip-path: none;
+  }
+  .scan-sweep {
+    display: none;
+  }
+  /* Scroll-driven rails are simply drawn in full. */
+  .progress-fill {
+    transform: none !important;
+  }
 }

@@ -1,0 +1,466 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>DevShowdown trailer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Anton&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=block"
+    />
+    <script>
+      /*
+       * With ?capture the page runs on a clock the renderer owns: time only
+       * moves when render.mjs calls __advance, so every frame of the video is
+       * exactly one step apart however long it takes to draw. This has to be
+       * in place before any module reads the clock.
+       */
+      if (new URLSearchParams(location.search).has("capture")) {
+        let now = 0;
+        let queue = [];
+        performance.now = () => now;
+        window.requestAnimationFrame = (callback) => queue.push(callback);
+        window.cancelAnimationFrame = (handle) => {
+          queue[handle - 1] = null;
+        };
+        window.__advance = (milliseconds, steps = 2) => {
+          for (let step = 0; step < steps; step++) {
+            now += milliseconds / steps;
+            const due = queue;
+            queue = [];
+            for (const callback of due) callback?.(now);
+          }
+        };
+      }
+    </script>
+    <style>
+      :root {
+        --bg: #060608;
+        --fg: #f3f3ee;
+        --muted: #a6a6b0;
+        --subtle: #82828e;
+        --violet: #7b3dff;
+        --violet-bright: #a98bff;
+        --lime: #c8ff2e;
+        --cyan: #7fe9ff;
+        --rose: #ff4d6a;
+        --display: "Anton", Impact, sans-serif;
+        --sans: "Geist", system-ui, sans-serif;
+        --mono: "Geist Mono", ui-monospace, monospace;
+        --accent: var(--violet-bright);
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+      }
+      html,
+      body {
+        background: #000;
+      }
+      #stage {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: var(--sans);
+      }
+      #stage > *,
+      #shake > * {
+        position: absolute;
+        inset: 0;
+      }
+      canvas {
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+      }
+
+      /* ------------------------------------------------------- backdrop */
+      .grid {
+        background-image:
+          linear-gradient(to right, #ffffff0d 1px, transparent 1px),
+          linear-gradient(to bottom, #ffffff0d 1px, transparent 1px);
+        background-size: 80px 80px;
+        mask-image: radial-gradient(
+          ellipse 75% 70% at 50% 45%,
+          #000 20%,
+          transparent 80%
+        );
+      }
+      #tint {
+        background: radial-gradient(
+          70rem 46rem at 68% 36%,
+          color-mix(in oklab, var(--accent) 24%, transparent),
+          transparent 70%
+        );
+      }
+      .scanlines {
+        background-image: repeating-linear-gradient(
+          to bottom,
+          transparent 0 3px,
+          #00000040 3px 4px
+        );
+        opacity: 0.3;
+      }
+      .vignette {
+        background: radial-gradient(
+          ellipse at center,
+          transparent 52%,
+          #000000b8 100%
+        );
+      }
+      #flash {
+        background: #dcd6ff;
+        opacity: 0;
+      }
+      #fade {
+        background: #000;
+        opacity: 0;
+      }
+      #sweep {
+        background: var(--accent);
+        transform: translateX(-140%) skewX(-18deg);
+      }
+
+      /* ---------------------------------------------------------- type */
+      .scene {
+        visibility: hidden;
+      }
+      .display {
+        font-family: var(--display);
+        font-weight: 400;
+        text-transform: uppercase;
+        line-height: 0.92;
+        letter-spacing: 0.005em;
+      }
+      .eyebrow {
+        font-family: var(--mono);
+        font-size: 24px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--subtle);
+      }
+      .outline {
+        color: transparent;
+        -webkit-text-stroke: 3px var(--outline-color, var(--fg));
+      }
+      .char-mask {
+        display: inline-block;
+        overflow: hidden;
+        padding-top: 0.06em;
+        margin-top: -0.06em;
+        vertical-align: bottom;
+      }
+      .char {
+        display: inline-block;
+        white-space: pre;
+      }
+
+      /* The name, one fixed-width box per letter (see wordmark()). */
+      .wordmark {
+        position: absolute;
+        left: 0;
+        width: 100%;
+        text-align: center;
+        white-space: nowrap;
+        line-height: 0.84;
+      }
+      .glyph {
+        display: inline-block;
+        text-align: center;
+        color: var(--fg);
+      }
+      .glyph.outline {
+        color: transparent;
+      }
+
+      /* ---------------------------------------------------------- intro */
+      /* The terminal text sits in the panel drawn on the canvas. */
+      #intro .lines {
+        position: absolute;
+        left: 1140px;
+        top: 290px;
+        font-family: var(--mono);
+        font-size: 36px;
+        line-height: 1.8;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      #intro .lines b {
+        color: var(--lime);
+        font-weight: 500;
+      }
+
+      /* ---------------------------------------------------------- title */
+      #title .rule,
+      #finale .rule {
+        position: absolute;
+        left: 140px;
+        right: 140px;
+        height: 2px;
+        background: #ffffff2e;
+        transform-origin: left;
+      }
+      #title .beam {
+        position: absolute;
+        top: 380px;
+        width: 4px;
+        height: 290px;
+        background: var(--lime);
+        box-shadow:
+          0 0 24px 6px #c8ff2e99,
+          0 0 90px 30px #c8ff2e40;
+        opacity: 0;
+      }
+      #title .tagline {
+        position: absolute;
+        left: 0;
+        width: 100%;
+        top: 760px;
+        text-align: center;
+        font-family: var(--mono);
+        font-size: 34px;
+        letter-spacing: 0.3em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      /* --------------------------------------------------------- events */
+      .card {
+        position: absolute;
+        inset: 0;
+        display: none;
+      }
+      .card .eyebrow {
+        position: absolute;
+        left: 140px;
+        top: 150px;
+      }
+      .card .eyebrow b {
+        color: var(--accent);
+        font-weight: 500;
+      }
+      .card .number {
+        position: absolute;
+        right: 60px;
+        top: 150px;
+        font-size: 760px;
+        --outline-color: color-mix(in oklab, var(--accent) 55%, transparent);
+      }
+      .card .name {
+        position: absolute;
+        left: 132px;
+        top: 400px;
+        font-size: 250px;
+        white-space: nowrap;
+      }
+      .card .ghost {
+        mix-blend-mode: screen;
+        opacity: 0;
+      }
+      .card .bar {
+        position: absolute;
+        left: 140px;
+        top: 668px;
+        width: 560px;
+        height: 12px;
+        background: var(--accent);
+        transform-origin: left;
+      }
+      .card .line {
+        position: absolute;
+        left: 140px;
+        top: 716px;
+        font-size: 54px;
+        font-weight: 500;
+        color: var(--fg);
+      }
+      .card .pips {
+        position: absolute;
+        left: 140px;
+        bottom: 130px;
+        display: flex;
+        gap: 14px;
+      }
+      .card .pips i {
+        width: 84px;
+        height: 6px;
+        background: #ffffff2e;
+      }
+      .card .pips i.on {
+        background: var(--accent);
+      }
+      .card .hud {
+        position: absolute;
+        left: 660px;
+        bottom: 118px;
+        font-family: var(--mono);
+        font-size: 26px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--subtle);
+        white-space: pre;
+      }
+      .card .hud.granted {
+        color: var(--accent);
+      }
+
+      /* ---------------------------------------------------------- prize */
+      #prize {
+        display: grid;
+        place-items: center;
+        text-align: center;
+      }
+      #prize .rings {
+        position: absolute;
+        inset: 0;
+      }
+      #prize .rings i {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 520px;
+        height: 520px;
+        margin: -260px 0 0 -260px;
+        border: 2px solid var(--lime);
+        border-radius: 50%;
+      }
+      #prize .figure {
+        font-size: 430px;
+        background-image: linear-gradient(
+          176deg,
+          #ffffff 16%,
+          #e9ffb0 44%,
+          #8a9a5a 60%,
+          #f1ffd0 86%
+        );
+        background-clip: text;
+        -webkit-background-clip: text;
+        color: transparent;
+        filter: drop-shadow(0 0 60px #c8ff2e55);
+      }
+      #prize .eyebrow {
+        font-size: 30px;
+        margin-bottom: 28px;
+      }
+      #prize .note {
+        font-family: var(--mono);
+        font-size: 26px;
+        color: var(--subtle);
+        margin-top: 18px;
+      }
+      #prize .sub {
+        margin-top: 44px;
+        font-size: 84px;
+      }
+      #prize .sub b {
+        color: var(--lime);
+        font-weight: 400;
+      }
+
+      /* --------------------------------------------------------- finale */
+      #finale .headline {
+        position: absolute;
+        left: 0;
+        width: 100%;
+        top: 610px;
+        text-align: center;
+        font-size: 150px;
+        word-spacing: 0.12em;
+      }
+      #finale .headline .lime {
+        color: var(--lime);
+      }
+      #finale .pill {
+        position: absolute;
+        left: 50%;
+        top: 836px;
+        display: inline-flex;
+        align-items: center;
+        gap: 20px;
+        padding: 10px 28px 10px 10px;
+        border: 1px solid #ffffff2e;
+        background: #060608cc;
+        font-size: 34px;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      #finale .pill b {
+        padding: 8px 16px;
+        background: var(--lime);
+        color: #060608;
+        font-family: var(--mono);
+        font-size: 24px;
+        font-weight: 500;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+      #finale .tagline {
+        position: absolute;
+        left: 0;
+        width: 100%;
+        top: 948px;
+        text-align: center;
+        font-family: var(--mono);
+        font-size: 26px;
+        letter-spacing: 0.3em;
+        text-transform: uppercase;
+        color: var(--subtle);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="stage">
+      <div id="shake">
+        <div class="grid"></div>
+        <div id="tint"></div>
+        <!-- Behind the type: falling code, the terminal, the tunnel. -->
+        <canvas id="back"></canvas>
+        <canvas id="sky"></canvas>
+
+        <section id="intro" class="scene">
+          <div class="lines"></div>
+        </section>
+
+        <section id="title" class="scene">
+          <h1 class="wordmark display"></h1>
+          <div class="beam"></div>
+          <div class="rule" style="top: 700px"></div>
+          <p class="tagline"></p>
+        </section>
+
+        <section id="events" class="scene"></section>
+
+        <section id="prize" class="scene">
+          <div class="rings"><i></i><i></i><i></i></div>
+          <div>
+            <p class="eyebrow">Prize pool</p>
+            <p class="figure display"></p>
+            <p class="note">approx.</p>
+            <p class="sub display"></p>
+          </div>
+        </section>
+
+        <section id="finale" class="scene">
+          <h1 class="wordmark display"></h1>
+          <div class="rule" style="top: 560px"></div>
+          <p class="headline display"></p>
+          <p class="pill"><b></b><span></span></p>
+          <p class="tagline"></p>
+        </section>
+
+        <div id="sweep"></div>
+        <!-- In front of the type: the hacker. -->
+        <canvas id="front"></canvas>
+      </div>
+      <div class="scanlines"></div>
+      <div class="vignette"></div>
+      <div id="flash"></div>
+      <div id="fade"></div>
+    </div>
+    <script type="module" src="/trailer.js"></script>
+  </body>
+</html>
