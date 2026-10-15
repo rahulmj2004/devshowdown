@@ -5,6 +5,7 @@ import { Header } from "@/components/layout/header";
 import { CursorRing } from "@/components/motion/cursor";
 import { ToastProvider } from "@/components/ui/toast";
 import { siteConfig } from "@/config/site";
+import { getSiteSettings } from "@/lib/data/settings";
 import { siteUrl } from "@/lib/env";
 import "./globals.css";
 
@@ -60,7 +61,10 @@ export const viewport: Viewport = {
  */
 const introScript = `try{var d=document.documentElement;if(location.pathname==="/"&&!sessionStorage.getItem("dsd-intro")&&!matchMedia("(prefers-reduced-motion: reduce)").matches){d.setAttribute("data-intro","play");sessionStorage.setItem("dsd-intro","1")}}catch(e){}`;
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const settings = await getSiteSettings();
+  const registrationOpen = settings.registrationStatus === "open";
+
   return (
     <html
       lang="en"
@@ -82,7 +86,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           Skip to content
         </a>
         <ToastProvider>
-          <Header />
+          <Header registrationOpen={registrationOpen} />
           <main id="main" className="flex-1 pt-16">
             {children}
           </main>

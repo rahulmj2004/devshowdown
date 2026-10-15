@@ -78,7 +78,9 @@ test("mobile menu opens, navigates and closes", async ({ page, isMobile }) => {
   await expect(menu).toBeVisible();
 
   // Items arrive one after another; the last one must still become usable.
-  await expect(menu.getByRole("link", { name: "Register" })).toBeVisible();
+  await expect(
+    menu.getByRole("link", { name: /^Register$|^Registrations Closed$/ }),
+  ).toBeVisible();
 
   await menu.getByRole("link", { name: "Schedule" }).click();
   await expect(page).toHaveURL(/#schedule$/);

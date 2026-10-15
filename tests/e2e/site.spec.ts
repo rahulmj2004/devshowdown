@@ -88,7 +88,7 @@ test.describe("landing page", () => {
     await page.goto("/");
     await page
       .getByRole("banner")
-      .getByRole("link", { name: "Register" })
+      .getByRole("link", { name: /^Register$|^Registrations Closed$/ })
       .click();
     await expect(page).toHaveURL(/\/register$/);
 

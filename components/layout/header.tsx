@@ -48,7 +48,7 @@ function useActiveSection(pathname: string): string | null {
   return pathname.startsWith("/events") ? "events" : null;
 }
 
-export function Header() {
+export function Header({ registrationOpen }: { registrationOpen: boolean }) {
   const pathname = usePathname();
   const active = useActiveSection(pathname);
   const reduceMotion = useReducedMotion();
@@ -114,10 +114,14 @@ export function Header() {
         <div className="flex items-center gap-2">
           <Magnetic className="hidden sm:inline-flex">
             <ButtonLink href="/register" size="sm">
-              Register
+              {registrationOpen ? "Register" : "Registrations Closed"}
             </ButtonLink>
           </Magnetic>
-          <MobileNav items={siteConfig.nav} active={active} />
+          <MobileNav
+            items={siteConfig.nav}
+            active={active}
+            registrationOpen={registrationOpen}
+          />
         </div>
       </div>
 

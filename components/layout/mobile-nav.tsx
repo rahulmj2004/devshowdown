@@ -17,9 +17,11 @@ const EASE = [0.16, 1, 0.3, 1] as const;
 export function MobileNav({
   items,
   active,
+  registrationOpen,
 }: {
   items: readonly NavItem[];
   active: string | null;
+  registrationOpen: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const panelId = useId();
@@ -139,7 +141,7 @@ export function MobileNav({
                   onClick={() => setOpen(false)}
                   className={buttonClasses({ size: "lg", className: "w-full" })}
                 >
-                  Register
+                  {registrationOpen ? "Register" : "Registrations Closed"}
                 </Link>
               </motion.div>
             </nav>

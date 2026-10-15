@@ -150,7 +150,7 @@ export function Hero({
                   size="lg"
                   className="group w-full sm:w-auto"
                 >
-                  {registrationOpen ? "Register Now" : "Registration"}
+                  {registrationOpen ? "Register Now" : "Registrations Closed"}
                   <ArrowRight
                     aria-hidden="true"
                     className="size-4 transition-transform duration-300 group-hover:translate-x-1"

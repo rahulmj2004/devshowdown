@@ -47,7 +47,7 @@ export function FinalCta({
               <ButtonLink href="/register" size="lg" className="group">
                 {registrationStatus === "open"
                   ? "Register Now"
-                  : "Registration status"}
+                  : "Registrations Closed"}
                 <ArrowRight
                   aria-hidden="true"
                   className="size-4 transition-transform duration-300 group-hover:translate-x-1"
