@@ -47,3 +47,11 @@ next-env.d.ts
 /test-results/
 /playwright-report/
 /.next-e2e/
+
+# OpenNext
+.open-next
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example

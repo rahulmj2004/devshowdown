@@ -63,7 +63,7 @@ test("hero essentials are readable without scrolling far", async ({
 
   if (isMobile) {
     // Prize pool sits within roughly one extra screen of the top on phones.
-    const prize = page.getByText("₹15,000").first();
+    const prize = page.getByText("₹3,000").first();
     const box = await prize.boundingBox();
     const viewport = page.viewportSize();
     expect(box && viewport && box.y < viewport.height * 1.25).toBeTruthy();

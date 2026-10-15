@@ -1,5 +1,5 @@
 import "server-only";
-import { cacheLife, cacheTag } from "next/cache";
+import { unstable_cache } from "next/cache";
 import { z } from "zod";
 import { createPublicClient } from "@/lib/supabase/public";
 import type { ResultEntry } from "@/types";
@@ -29,11 +29,7 @@ export interface PublishedResults {
  * Published leaderboard rows. Only display names and scores are selected, and
  * RLS exposes published rows only, so no participant contact data can leak.
  */
-export async function getPublishedResults(): Promise<PublishedResults> {
-  "use cache";
-  cacheTag(CACHE_TAGS.results);
-  cacheLife("minutes");
-
+async function readPublishedResults(): Promise<PublishedResults> {
   const supabase = createPublicClient();
   if (!supabase) return { entries: [], source: "not_configured" };
 
@@ -60,3 +56,9 @@ export async function getPublishedResults(): Promise<PublishedResults> {
     return { entries: [], source: "error" };
   }
 }
+
+export const getPublishedResults = unstable_cache(
+  readPublishedResults,
+  [CACHE_TAGS.results],
+  { revalidate: 60, tags: [CACHE_TAGS.results] },
+);

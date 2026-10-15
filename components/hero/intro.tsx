@@ -8,23 +8,19 @@ const CLEANUP_AFTER_MS = 4800;
 
 const bootLines = ["mount /arena", "load competitions", "ready"];
 
-/**
- * Opening sequence markup. The animation itself is CSS (see `.intro` in
- * globals.css) and only exists while <html data-intro="play">, which the
- * inline script in the root layout sets at most once per session.
- *
- * This component retires that attribute in two steps. Once the sequence has
- * finished it becomes "done", which hides the overlay but leaves the hero's
- * animation delay untouched (changing it would replay the hero). The next
- * time the home page is shown, "done" is dropped, so the hero starts at once.
- */
+/** CSS owns visibility; this effect only retires the root flag after the sequence. */
 export function Intro() {
   useEffect(() => {
     const root = document.documentElement;
+
+    // A completed intro should not delay the hero when the home page is revisited.
     if (root.getAttribute("data-intro") === "done") {
       root.removeAttribute("data-intro");
     }
-    if (root.getAttribute("data-intro") !== "play") return;
+    if (root.getAttribute("data-intro") !== "play") {
+      return;
+    }
+
     const timer = window.setTimeout(
       () => root.setAttribute("data-intro", "done"),
       CLEANUP_AFTER_MS,
@@ -38,9 +34,11 @@ export function Intro() {
         <div className="intro-word">
           <Wordmark className="text-[clamp(2.5rem,11vw,5rem)]" />
         </div>
+
         <div className="mt-5 h-px w-full bg-line-strong">
           <div className="intro-bar h-px w-full bg-lime" />
         </div>
+
         <ul className="mt-4 space-y-1 font-mono text-[11px] text-subtle">
           {bootLines.map((line, index) => (
             <li

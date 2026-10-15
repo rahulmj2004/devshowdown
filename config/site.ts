@@ -100,13 +100,13 @@ export const siteConfig = {
 
   prize: {
     /** Total prize pool in rupees. */
-    total: 15000,
+    total: 3000,
     /**
-     * ORGANIZER: set to `false` once ₹15,000 is confirmed as the final amount
+     * ORGANIZER: set to `false` once ₹3,000 is confirmed as the final amount
      * for this edition. While `true` the figure is labelled as approximate and
      * awaiting confirmation everywhere it appears.
      */
-    approximate: true,
+    approximate: false,
     /**
      * Podium split, e.g.
      *   [{ label: "1st place", amount: 7500 }, { label: "2nd place", ... }]
@@ -188,7 +188,7 @@ export const siteConfig = {
    * With Supabase configured, organizers change these from the admin dashboard.
    */
   defaults: {
-    registrationStatus: "open" as RegistrationStatus,
+    registrationStatus: "closed" as RegistrationStatus,
     announcementLabel: "Announced",
     announcementText:
       "15 October 2026 · Vidya Academy of Science and Technology, Thrissur",
@@ -282,7 +282,7 @@ export const faqs: FaqItem[] = [
   {
     question: "What is DevShowdown?",
     answer:
-      "DevShowdown is a developer competition made up of several events that test speed, logic, coding, and problem-solving. The total prize pool is approximately ₹15,000.",
+      "DevShowdown is a developer competition made up of several events that test speed, logic, coding, and problem-solving. The total prize pool is ₹3,000.",
   },
   {
     question: "Which competitions can I take part in?",
@@ -326,7 +326,7 @@ export const faqs: FaqItem[] = [
   {
     question: "How will the prize pool be distributed?",
     answer:
-      "The total prize pool is approximately ₹15,000. It is awarded to the top 2 teams in the afternoon Treasure Hunt. The amount for each place will be announced later.",
+      "The total prize pool is ₹3,000. It is awarded to the top 2 teams in the afternoon Treasure Hunt. The amount for each place will be announced later.",
     awaitingConfirmation: true,
   },
   {

@@ -43,8 +43,11 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   // The e2e suite builds a second copy (registration open) into its own folder.
   distDir: process.env.NEXT_DIST_DIR || ".next",
-  cacheComponents: true,
-  partialPrefetching: true,
+  // Cache Components staged renders are not yet compatible with workerd.
+  // The database reads use unstable_cache until the adapter supports them.
+  cacheComponents: false,
+  // Preserve the previous "minutes" profile's one-hour maximum stale window.
+  expireTime: 3600,
   // Do not advertise the framework in a response header.
   poweredByHeader: false,
   turbopack: {
@@ -61,3 +64,9 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
+
+if (process.env.NODE_ENV === "development") {
+  import("@opennextjs/cloudflare").then((m) =>
+    m.initOpenNextCloudflareForDev(),
+  );
+}

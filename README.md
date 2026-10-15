@@ -38,7 +38,7 @@ Everything the organizers decide lives in two files. Nothing else needs to chang
 confirmation". Nothing is guessed.** Search both files for `ORGANIZER` to find every
 decision still outstanding. Notable ones:
 
-- `prize.approximate`: `true` labels ₹15,000 as approximate and awaiting confirmation
+- `prize.approximate`: `true` labels the prize figure as approximate and awaiting confirmation
   everywhere. Set it to `false` once the amount is final.
 - `prize.distribution`: fills in the podium.
 - `details.startsAt`: an ISO instant with offset (`2027-03-14T09:30:00+05:30`). The hero

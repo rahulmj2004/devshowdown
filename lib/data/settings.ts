@@ -1,5 +1,5 @@
 import "server-only";
-import { cacheLife, cacheTag } from "next/cache";
+import { unstable_cache } from "next/cache";
 import { z } from "zod";
 import { siteConfig } from "@/config/site";
 import { env } from "@/lib/env";
@@ -27,11 +27,7 @@ function configSettings(): SiteSettings {
  * Runtime site settings. Reads the single `site_settings` row when Supabase is
  * connected and falls back to `config/site.ts` otherwise, or if the read fails.
  */
-export async function getSiteSettings(): Promise<SiteSettings> {
-  "use cache";
-  cacheTag(CACHE_TAGS.settings);
-  cacheLife("minutes");
-
+async function readSiteSettings(): Promise<SiteSettings> {
   const supabase = createPublicClient();
   if (!supabase) return configSettings();
 
@@ -54,3 +50,9 @@ export async function getSiteSettings(): Promise<SiteSettings> {
     return configSettings();
   }
 }
+
+export const getSiteSettings = unstable_cache(
+  readSiteSettings,
+  [CACHE_TAGS.settings],
+  { revalidate: 60, tags: [CACHE_TAGS.settings] },
+);
